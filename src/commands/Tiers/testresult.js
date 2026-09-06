@@ -50,7 +50,7 @@ export default {
                 { name: 'Previous Rank:', value: previousRank },
                 { name: 'Rank Earned:', value: rankEarned }
             )
-            .setThumbnail(`https://mc-heads.net/body/${username}`);
+            .setThumbnail(`https://mc-heads.net/player/${username}/right`);
 
         await interaction.reply({ content: `<@${player.id}>`, embeds: [embed] });
     },
