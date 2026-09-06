@@ -7,6 +7,20 @@ import {
     PermissionFlagsBits 
 } from 'discord.js';
 
+// Custom Emoji ID khusus aset MCTiers
+const EMOJIS = {
+    VERIFY: '1215283940123021312',   // Heart/Verify
+    CRYSTAL: '1215283938210410496',  // Crystal Icon
+    SWORD: '1215283925237514240',    // Sword Icon
+    AXE: '1215283923412979722',      // Axe Icon
+    UHC: '1215283921831723018',      // UHC / Golden Apple Icon
+    SMP: '1215283920191885372',      // SMP / Ender Pearl Icon
+    DIAPOT: '1215283918505775104',   // Pot / Potion Icon
+    NETHPOT: '1215283916895158282',  // NethOP / Helmet Icon
+    DIASMP: '1215283915150331904',   // DiaSMP / Chorus Icon
+    MACE: '1215283913455702026'      // Mace Icon
+};
+
 export default {
     data: new SlashCommandBuilder()
         .setName('setup-waitlist')
@@ -38,25 +52,25 @@ export default {
             new ButtonBuilder()
                 .setCustomId('waitlist_verify')
                 .setLabel('VERIFY')
-                .setEmoji('❤️')
+                .setEmoji(EMOJIS.VERIFY)
                 .setStyle(ButtonStyle.Secondary)
         );
 
         // Baris 2: Gamemode (Crystal, Sword, Axe, UHC, SMP)
         const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('gm_crystal').setLabel('Crystal').setEmoji('🔮').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('gm_sword').setLabel('Sword').setEmoji('⚔️').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('gm_axe').setLabel('Axe').setEmoji('🪓').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('gm_uhc').setLabel('UHC').setEmoji('🍏').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('gm_smp').setLabel('SMP').setEmoji('🌐').setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('gm_crystal').setLabel('Crystal').setEmoji(EMOJIS.CRYSTAL).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('gm_sword').setLabel('Sword').setEmoji(EMOJIS.SWORD).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('gm_axe').setLabel('Axe').setEmoji(EMOJIS.AXE).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('gm_uhc').setLabel('UHC').setEmoji(EMOJIS.UHC).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('gm_smp').setLabel('SMP').setEmoji(EMOJIS.SMP).setStyle(ButtonStyle.Secondary)
         );
 
         // Baris 3: Gamemode (DiaPot, NethPot, DiaSmp, Mace)
         const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('gm_diapot').setLabel('DiaPot').setEmoji('🧪').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('gm_nethpot').setLabel('NethPot').setEmoji('🖤').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('gm_diasmp').setLabel('DiaSmp').setEmoji('🍇').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('gm_mace').setLabel('Mace').setEmoji('🔨').setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('gm_diapot').setLabel('DiaPot').setEmoji(EMOJIS.DIAPOT).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('gm_nethpot').setLabel('NethPot').setEmoji(EMOJIS.NETHPOT).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('gm_diasmp').setLabel('DiaSmp').setEmoji(EMOJIS.DIASMP).setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('gm_mace').setLabel('Mace').setEmoji(EMOJIS.MACE).setStyle(ButtonStyle.Secondary)
         );
 
         await interaction.channel.send({ 
