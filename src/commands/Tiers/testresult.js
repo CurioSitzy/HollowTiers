@@ -1,6 +1,6 @@
-const { EmbedBuilder, SlashCommandBuilder } = require('discord.js');
+import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
-module.exports = {
+export default {
     data: new SlashCommandBuilder()
         .setName('testresult')
         .setDescription('Kirim hasil tier test player')
