@@ -95,7 +95,7 @@ export default {
                 { name: 'Previous Rank:', value: previousRank, inline: true },
                 { name: 'Rank Earned:', value: rankEarned, inline: true }
             )
-            .setImage(`https://mc-heads.net/player/${username}/right`);
+            .setImage(`https://render.crafty.gg/3d/full/512/${username}`);
 
         // Kirim embed + tag player ke channel #results
         await targetChannel.send({ content: `<@${player.id}>`, embeds: [embed] });
