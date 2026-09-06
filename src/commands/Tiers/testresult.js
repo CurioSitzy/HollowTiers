@@ -1,7 +1,7 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
 // Ganti angkanya dengan ID channel `#🏆・results` milikmu
-const ALLOWED_CHANNEL_ID = 'GANTI_DENGAN_ID_CHANNEL_KAMU'; 
+const ALLOWED_CHANNEL_ID = '1509184085015269516'; 
 
 export default {
     data: new SlashCommandBuilder()
