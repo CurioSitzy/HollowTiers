@@ -58,6 +58,8 @@ export default {
                     { name: 'Pot', value: 'Pot' },
                     { name: 'UHC', value: 'UHC' },
                     { name: 'Netherite OP', value: 'Netherite OP' }
+                    { name: 'Cart', value: 'Cart' }
+                    { name: 'Spear Mace', value: 'Spear Mace' }
                 ))
         .addStringOption(option => 
             option.setName('previous_rank')
