@@ -6,22 +6,29 @@ const ALLOWED_CHANNEL_ID = 'GANTI_DENGAN_ID_CHANNEL_KAMU';
 export default {
     data: new SlashCommandBuilder()
         .setName('testresult')
-        .setDescription('Kirim hasil tier test player')
+        .setDescription('Send a player tier test result')
         .addUserOption(option => 
             option.setName('player')
-                .setDescription('Player yang dites')
+                .setDescription('The player who was tested')
                 .setRequired(true))
         .addUserOption(option => 
             option.setName('tester')
-                .setDescription('Tester yang nge-test')
+                .setDescription('The tester who conducted the test')
                 .setRequired(true))
         .addStringOption(option => 
             option.setName('region')
-                .setDescription('Region (misal: AS, EU, NA)')
-                .setRequired(true))
+                .setDescription('Region (e.g. NA, EU, AS, AU)')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'NA', value: 'NA' },
+                    { name: 'EU', value: 'EU' },
+                    { name: 'AS', value: 'AS' },
+                    { name: 'AU', value: 'AU' },
+                    { name: 'SA', value: 'SA' }
+                ))
         .addStringOption(option => 
             option.setName('username')
-                .setDescription('Username Minecraft player')
+                .setDescription('Minecraft IGN / Username')
                 .setRequired(true))
         .addStringOption(option => 
             option.setName('gamemode')
@@ -39,18 +46,18 @@ export default {
                 ))
         .addStringOption(option => 
             option.setName('previous_rank')
-                .setDescription('Rank sebelumnya')
+                .setDescription('Previous rank')
                 .setRequired(true))
         .addStringOption(option => 
             option.setName('rank_earned')
-                .setDescription('Rank yang didapat')
+                .setDescription('Rank earned')
                 .setRequired(true)),
 
     async execute(interaction) {
         // Pengecekan ID Channel
         if (interaction.channelId !== ALLOWED_CHANNEL_ID) {
             return await interaction.reply({
-                content: `❌ Command ini cuma bisa dipakai di channel <#${ALLOWED_CHANNEL_ID}>!`,
+                content: `❌ This command can only be used in <#${ALLOWED_CHANNEL_ID}>!`,
                 ephemeral: true
             });
         }
