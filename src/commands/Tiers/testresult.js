@@ -1,8 +1,8 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
 // ID Channel
-const COMMAND_CHANNEL_ID = 'GANTI_ID_CHANNEL_RESULT_COMMANDS'; // Tempat ngetik /testresult
-const OUTPUT_CHANNEL_ID = 'GANTI_ID_CHANNEL_RESULTS';          // Tempat embed hasil terkirim
+const COMMAND_CHANNEL_ID = '1509184085015269516'; // Tempat ngetik /testresult
+const OUTPUT_CHANNEL_ID = '1500797205382959164';          // Tempat embed hasil terkirim
 
 export default {
     data: new SlashCommandBuilder()
