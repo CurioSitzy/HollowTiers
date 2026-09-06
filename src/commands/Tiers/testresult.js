@@ -102,28 +102,11 @@ export default {
                 iconURL: player.displayAvatarURL() 
             })
             .addFields(
-                // Baris 1
-                { name: 'Tester', value: `<@${tester.id}>`, inline: true },
-                { name: 'Region', value: region, inline: true },
-                { name: '\u200b', value: '\u200b', inline: true }, // Pemutus baris
-
-                // Baris 2
-                { name: 'Gamemode', value: gamemode, inline: true },
-                { name: 'Username', value: username, inline: true },
-                { name: '\u200b', value: '\u200b', inline: true }, // Pemutus baris
-
-                // Baris 3
-                { name: 'Previous Rank', value: previousRank, inline: true },
-                { name: 'Rank Earned', value: rankEarned, inline: true },
-                { name: '\u200b', value: '\u200b', inline: true }  // Pemutus baris
+                { name: 'Tester:', value: `<@${tester.id}>` },
+                { name: 'Region:', value: `\`${region}\`` },
+                { name: 'Username:', value: `\`${username}\`` },
+                { name: 'Previous Rank:', value: `\`${previousRank}\`` },
+                { name: 'Rank Earned:', value: `\`${rankEarned}\`` },
+                { name: 'Gamemode:', value: `\`${gamemode}\`` }
             )
-            .setThumbnail(`https://visage.surgeplay.com/bust/512/${username}`);
-
-        await targetChannel.send({ content: `<@${player.id}>`, embeds: [embed] });
-
-        await interaction.reply({
-            content: `✅ Test result for **${username}** has been sent to <#${OUTPUT_CHANNEL_ID}>!`,
-            ephemeral: true
-        });
-    },
-};
+            .setThumbnail(`
