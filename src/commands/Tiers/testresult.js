@@ -111,7 +111,7 @@ export default {
                 { name: 'Previous Rank', value: previousRank, inline: true },
                 { name: 'Rank Earned', value: rankEarned, inline: true }
             )
-            .setImage(`https://visage.surgeplay.com/full/512/${username}`);
+            .setThumbnail(`https://visage.surgeplay.com/bust/512/${username}`);
 
         // Kirim embed + tag player ke channel #results
         await targetChannel.send({ content: `<@${player.id}>`, embeds: [embed] });
