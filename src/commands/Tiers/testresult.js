@@ -109,4 +109,13 @@ export default {
                 { name: 'Rank Earned:', value: `\`${rankEarned}\`` },
                 { name: 'Gamemode:', value: `\`${gamemode}\`` }
             )
-            .setThumbnail(`
+            .setThumbnail(`https://visage.surgeplay.com/bust/512/${username}`);
+
+        await targetChannel.send({ content: `<@${player.id}>`, embeds: [embed] });
+
+        await interaction.reply({
+            content: `✅ Test result for **${username}** has been sent to <#${OUTPUT_CHANNEL_ID}>!`,
+            ephemeral: true
+        });
+    }
+};
