@@ -1,7 +1,8 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
-// Ganti angkanya dengan ID channel `#🏆・results` milikmu
-const ALLOWED_CHANNEL_ID = '1509184085015269516'; 
+// ID Channel
+const COMMAND_CHANNEL_ID = 'GANTI_ID_CHANNEL_RESULT_COMMANDS'; // Tempat ngetik /testresult
+const OUTPUT_CHANNEL_ID = 'GANTI_ID_CHANNEL_RESULTS';          // Tempat embed hasil terkirim
 
 export default {
     data: new SlashCommandBuilder()
@@ -54,10 +55,10 @@ export default {
                 .setRequired(true)),
 
     async execute(interaction) {
-        // Pengecekan ID Channel
-        if (interaction.channelId !== ALLOWED_CHANNEL_ID) {
+        // Cek apakah command dijalankan di channel #result-commands
+        if (interaction.channelId !== COMMAND_CHANNEL_ID) {
             return await interaction.reply({
-                content: `❌ This command can only be used in <#${ALLOWED_CHANNEL_ID}>!`,
+                content: `❌ This command can only be used in <#${COMMAND_CHANNEL_ID}>!`,
                 ephemeral: true
             });
         }
@@ -69,6 +70,16 @@ export default {
         const gamemode = interaction.options.getString('gamemode');
         const previousRank = interaction.options.getString('previous_rank');
         const rankEarned = interaction.options.getString('rank_earned');
+
+        // Ambil channel tempat output hasil embed
+        const targetChannel = await interaction.client.channels.fetch(OUTPUT_CHANNEL_ID).catch(() => null);
+
+        if (!targetChannel) {
+            return await interaction.reply({
+                content: `❌ Could not find output channel! Please check output channel ID.`,
+                ephemeral: true
+            });
+        }
 
         const embed = new EmbedBuilder()
             .setColor(0xFF0000)
@@ -84,8 +95,15 @@ export default {
                 { name: 'Previous Rank:', value: previousRank, inline: true },
                 { name: 'Rank Earned:', value: rankEarned, inline: true }
             )
-            .setThumbnail(`https://mc-heads.net/player/${username}/right`);
+            .setImage(`https://mc-heads.net/player/${username}/right`);
 
-        await interaction.reply({ content: `<@${player.id}>`, embeds: [embed] });
+        // Kirim embed + tag player ke channel #results
+        await targetChannel.send({ content: `<@${player.id}>`, embeds: [embed] });
+
+        // Konfirmasi sukses ke pengirim command di #result-commands
+        await interaction.reply({
+            content: `✅ Test result for **${username}** has been sent to <#${OUTPUT_CHANNEL_ID}>!`,
+            ephemeral: true
+        });
     },
 };
