@@ -71,7 +71,6 @@ export default {
                 .addChoices(...RANK_CHOICES)),
 
     async execute(interaction) {
-        // Cek apakah command dijalankan di channel #result-commands
         if (interaction.channelId !== COMMAND_CHANNEL_ID) {
             return await interaction.reply({
                 content: `❌ This command can only be used in <#${COMMAND_CHANNEL_ID}>!`,
@@ -87,7 +86,6 @@ export default {
         const previousRank = interaction.options.getString('previous_rank');
         const rankEarned = interaction.options.getString('rank_earned');
 
-        // Ambil channel tempat output hasil embed
         const targetChannel = await interaction.client.channels.fetch(OUTPUT_CHANNEL_ID).catch(() => null);
 
         if (!targetChannel) {
@@ -104,19 +102,25 @@ export default {
                 iconURL: player.displayAvatarURL() 
             })
             .addFields(
+                // Baris 1
                 { name: 'Tester', value: `<@${tester.id}>`, inline: true },
                 { name: 'Region', value: region, inline: true },
+                { name: '\u200b', value: '\u200b', inline: true }, // Pemutus baris
+
+                // Baris 2
                 { name: 'Gamemode', value: gamemode, inline: true },
                 { name: 'Username', value: username, inline: true },
+                { name: '\u200b', value: '\u200b', inline: true }, // Pemutus baris
+
+                // Baris 3
                 { name: 'Previous Rank', value: previousRank, inline: true },
-                { name: 'Rank Earned', value: rankEarned, inline: true }
+                { name: 'Rank Earned', value: rankEarned, inline: true },
+                { name: '\u200b', value: '\u200b', inline: true }  // Pemutus baris
             )
             .setThumbnail(`https://visage.surgeplay.com/bust/512/${username}`);
 
-        // Kirim embed + tag player ke channel #results
         await targetChannel.send({ content: `<@${player.id}>`, embeds: [embed] });
 
-        // Konfirmasi sukses ke pengirim command di #result-commands
         await interaction.reply({
             content: `✅ Test result for **${username}** has been sent to <#${OUTPUT_CHANNEL_ID}>!`,
             ephemeral: true
