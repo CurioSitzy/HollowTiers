@@ -1,4 +1,12 @@
-import { Events, MessageFlags } from 'discord.js';
+import { 
+  Events, 
+  MessageFlags, 
+  ModalBuilder, 
+  TextInputBuilder, 
+  TextInputStyle, 
+  ActionRowBuilder, 
+  EmbedBuilder 
+} from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { getGuildConfig } from '../services/config/guildConfig.js';
 import {
@@ -307,6 +315,42 @@ export default {
             }
           }
         } else if (interaction.isButton()) {
+          // --- HANDLER TOMBOL VERIFY WAITLIST ---
+          if (interaction.customId === 'waitlist_verify') {
+            const modal = new ModalBuilder()
+              .setCustomId('modal_verify_form')
+              .setTitle('Player Verification');
+
+            const ignInput = new TextInputBuilder()
+              .setCustomId('verify_ign')
+              .setLabel('In-Game Name (Minecraft Username)')
+              .setStyle(TextInputStyle.Short)
+              .setPlaceholder('e.g. Player123')
+              .setRequired(true);
+
+            const regionInput = new TextInputBuilder()
+              .setCustomId('verify_region')
+              .setLabel('Region (NA / EU / AS / AU)')
+              .setStyle(TextInputStyle.Short)
+              .setPlaceholder('e.g. AS')
+              .setRequired(true);
+
+            const typeInput = new TextInputBuilder()
+              .setCustomId('verify_type')
+              .setLabel('Account Type (Cracked / Premium)')
+              .setStyle(TextInputStyle.Short)
+              .setPlaceholder('e.g. Premium')
+              .setRequired(true);
+
+            modal.addComponents(
+              new ActionRowBuilder().addComponents(ignInput),
+              new ActionRowBuilder().addComponents(regionInput),
+              new ActionRowBuilder().addComponents(typeInput)
+            );
+
+            return await interaction.showModal(modal);
+          }
+
           if (interaction.customId.startsWith('shared_todo_')) {
             const parts = interaction.customId.split('_');
             const buttonType = parts.slice(0, 3).join('_');
@@ -335,7 +379,7 @@ export default {
           }
 
           const [customId, ...args] = interaction.customId.split(':');
-          const button = client.buttons.get(customId);
+          const button = client.buttons?.get(customId);
 
           if (!button) {
             if (!interaction.customId.includes(':') || isCollectorManagedComponent(customId)) {
@@ -361,7 +405,7 @@ export default {
           }
         } else if (interaction.isStringSelectMenu()) {
           const [customId, ...args] = interaction.customId.split(':');
-          const selectMenu = client.selectMenus.get(customId);
+          const selectMenu = client.selectMenus?.get(customId);
 
           if (!selectMenu) {
             if (!interaction.customId.includes(':') || isCollectorManagedComponent(customId)) {
@@ -385,6 +429,34 @@ export default {
             }, interactionTraceContext));
           }
         } else if (interaction.isModalSubmit()) {
+          // --- HANDLER SUBMIT FORM VERIFY WAITLIST ---
+          if (interaction.customId === 'modal_verify_form') {
+            const ign = interaction.fields.getTextInputValue('verify_ign');
+            const region = interaction.fields.getTextInputValue('verify_region');
+            const type = interaction.fields.getTextInputValue('verify_type');
+
+            try {
+              await interaction.member.setNickname(`${ign} [${region.toUpperCase()}]`);
+            } catch (err) {
+              // Bot tidak memiliki izin mengubah nama pengguna
+            }
+
+            const successEmbed = new EmbedBuilder()
+              .setColor(0x57F287)
+              .setTitle('✅ Verification Successful!')
+              .setDescription(
+                `**IGN:** \`${ign}\`\n` +
+                `**Region:** \`${region.toUpperCase()}\`\n` +
+                `**Type:** \`${type}\`\n\n` +
+                `You are now verified!`
+              );
+
+            return await interaction.reply({
+              embeds: [successEmbed],
+              ephemeral: true
+            });
+          }
+
           if (interaction.customId.startsWith('app_modal_')) {
             try {
               await handleApplicationModal(interaction);
@@ -413,11 +485,10 @@ export default {
           }
 
           const [customId, ...args] = interaction.customId.split(':');
-          const modal = client.modals.get(customId);
+          const modal = client.modals?.get(customId);
 
           if (!modal) {
             if (!interaction.customId.includes(':')) {
-
               return;
             }
 
