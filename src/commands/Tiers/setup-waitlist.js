@@ -10,15 +10,15 @@ import {
 // Daftar Emoji Custom & Fallback Unicode (Pencegah Error API)
 const BUTTON_CONFIG = {
     VERIFY: { id: '1546342563487944734', fallback: '✅', label: 'Verify', customId: 'waitlist_verify' },
-    CRYSTAL: { id: '1546313326676414554', fallback: '🔮', label: 'Crystal', customId: 'gm_crystal' },
-    SWORD: { id: '1546313218450788432', fallback: '⚔️', label: 'Sword', customId: 'gm_sword' },
-    AXE: { id: '1546313229402243185', fallback: '🪓', label: 'Axe', customId: 'gm_axe' },
-    UHC: { id: '1546313237258043453', fallback: '❤️', label: 'UHC', customId: 'gm_uhc' },
-    SMP: { id: '1546313380170702878', fallback: '🌐', label: 'SMP', customId: 'gm_smp' },
-    POT: { id: '1546313256849772654', fallback: '🧪', label: 'Pot', customId: 'gm_pot' },
-    NETHOP: { id: '1546313270510751764', fallback: '🔥', label: 'NethOP', customId: 'gm_nethop' },
+    CRYSTAL: { id: '1546304880476561408', fallback: '🔮', label: 'Crystal', customId: 'gm_crystal' },
+    SWORD: { id: '1546304895395569675', fallback: '⚔️', label: 'Sword', customId: 'gm_sword' },
+    AXE: { id: '1546304739036373023', fallback: '🪓', label: 'Axe', customId: 'gm_axe' },
+    UHC: { id: '1546304876340977715', fallback: '❤️', label: 'UHC', customId: 'gm_uhc' },
+    SMP: { id: '1546304892048646154', fallback: '🌐', label: 'SMP', customId: 'gm_smp' },
+    POT: { id: '1546304887451689020', fallback: '🧪', label: 'Pot', customId: 'gm_pot' },
+    NETHOP: { id: '1546304884230586408', fallback: '🔥', label: 'NethOP', customId: 'gm_nethop' },
     DIAMONDSMP: { id: '1546307214967570582', fallback: '💎', label: 'DiamondSMP', customId: 'gm_diamondsmp' },
-    MACE: { id: '1546313193989734510', fallback: '🔨', label: 'Mace', customId: 'gm_mace' }
+    MACE: { id: '1546304790072393809', fallback: '🔨', label: 'Mace', customId: 'gm_mace' }
 };
 
 /**
