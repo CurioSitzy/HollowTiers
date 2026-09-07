@@ -22,17 +22,26 @@ const EMOJIS = {
 };
 
 export default {
+    category: 'Waitlist',
     data: new SlashCommandBuilder()
         .setName('setup-waitlist')
         .setDescription('Send the Evaluation Testing Waitlist panel')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        // 1. Wajib Reply Interaction Dulu Agar Tidak Timeout / API Error
+        await interaction.reply({ 
+            content: '✅ Deploying waitlist panel...', 
+            ephemeral: true 
+        });
+
+        const guildIcon = interaction.guild.iconURL();
+
         const embed = new EmbedBuilder()
             .setColor(0x2B2D31)
             .setAuthor({ 
                 name: 'Evaluation Testing Waitlist', 
-                iconURL: interaction.guild.iconURL() 
+                ...(guildIcon && { iconURL: guildIcon })
             })
             .setDescription(
                 `🩸 **Requirements:**\n` +
@@ -73,14 +82,15 @@ export default {
             new ButtonBuilder().setCustomId('gm_mace').setLabel('Mace').setEmoji(EMOJIS.MACE).setStyle(ButtonStyle.Secondary)
         );
 
+        // 2. Kirim Pesan Embed Ke Channel
         await interaction.channel.send({ 
             embeds: [embed], 
             components: [row1, row2, row3] 
         });
 
-        await interaction.reply({ 
-            content: '✅ Waitlist panel successfully deployed!', 
-            ephemeral: true 
+        // 3. Update Pesan Ephemeral
+        await interaction.editReply({ 
+            content: '✅ Waitlist panel successfully deployed!' 
         });
     }
 };
