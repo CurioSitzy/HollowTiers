@@ -19,6 +19,7 @@ const RANK_CHOICES = [
 ];
 
 export default {
+    category: 'Tiers',
     data: new SlashCommandBuilder()
         .setName('testresult')
         .setDescription('Send a player tier test result')
@@ -57,8 +58,8 @@ export default {
                     { name: 'SMP', value: 'SMP' },
                     { name: 'Pot', value: 'Pot' },
                     { name: 'UHC', value: 'UHC' },
-                    { name: 'Netherite OP', value: 'Netherite OP' }
-                    { name: 'Cart', value: 'Cart' }
+                    { name: 'Netherite OP', value: 'Netherite OP' },
+                    { name: 'Cart', value: 'Cart' },
                     { name: 'Spear Mace', value: 'Spear Mace' }
                 ))
         .addStringOption(option => 
