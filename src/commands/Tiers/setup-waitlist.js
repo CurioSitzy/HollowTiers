@@ -7,18 +7,18 @@ import {
     PermissionFlagsBits 
 } from 'discord.js';
 
-// Ganti angka ID di bawah dengan ID Custom Emoji dari server kamu
+// Format emoji menggunakan objek { id: '...' } agar tidak ditolak Discord API
 const EMOJIS = {
-    VERIFY: '1546313419068674189',   
-    CRYSTAL: '1546313326676414554',  
-    SWORD: '1546313218450788432',    
-    AXE: '1546313229402243185',      
-    UHC: '1546313237258043453',      
-    SMP: '1546313380170702878',      
-    DIAPOT: '1546313256849772654',   
-    NETHPOT: '1546313270510751764',  
-    DIASMP: '1546313297547231252',   
-    MACE: '1546313193989734510'      
+    VERIFY: { id: '1546313419068674189' },   
+    CRYSTAL: { id: '1546313326676414554' },  
+    SWORD: { id: '1546313218450788432' },    
+    AXE: { id: '1546313229402243185' },      
+    UHC: { id: '1546313237258043453' },      
+    SMP: { id: '1546313380170702878' },      
+    DIAPOT: { id: '1546313256849772654' },   
+    NETHPOT: { id: '1546313270510751764' },  
+    DIASMP: { id: '1546313297547231252' },   
+    MACE: { id: '1546313193989734510' }      
 };
 
 export default {
@@ -29,7 +29,6 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        // 1. Wajib Reply Interaction Dulu Agar Tidak Timeout / API Error
         await interaction.reply({ 
             content: '✅ Deploying waitlist panel...', 
             ephemeral: true 
@@ -56,7 +55,7 @@ export default {
                 `🩸 Failure To Provide Authentic Information Will Result In A Denied Test.`
             );
 
-        // Baris 1: Tombol VERIFY
+        // Baris 1: VERIFY
         const row1 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('waitlist_verify')
@@ -65,7 +64,7 @@ export default {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        // Baris 2: Gamemode (Crystal, Sword, Axe, UHC, SMP)
+        // Baris 2: Gamemode
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('gm_crystal').setLabel('Crystal').setEmoji(EMOJIS.CRYSTAL).setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('gm_sword').setLabel('Sword').setEmoji(EMOJIS.SWORD).setStyle(ButtonStyle.Secondary),
@@ -74,7 +73,7 @@ export default {
             new ButtonBuilder().setCustomId('gm_smp').setLabel('SMP').setEmoji(EMOJIS.SMP).setStyle(ButtonStyle.Secondary)
         );
 
-        // Baris 3: Gamemode (DiaPot, NethPot, DiaSmp, Mace)
+        // Baris 3: Gamemode Tambahan
         const row3 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('gm_diapot').setLabel('DiaPot').setEmoji(EMOJIS.DIAPOT).setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('gm_nethpot').setLabel('NethPot').setEmoji(EMOJIS.NETHPOT).setStyle(ButtonStyle.Secondary),
@@ -82,13 +81,11 @@ export default {
             new ButtonBuilder().setCustomId('gm_mace').setLabel('Mace').setEmoji(EMOJIS.MACE).setStyle(ButtonStyle.Secondary)
         );
 
-        // 2. Kirim Pesan Embed Ke Channel
         await interaction.channel.send({ 
             embeds: [embed], 
             components: [row1, row2, row3] 
         });
 
-        // 3. Update Pesan Ephemeral
         await interaction.editReply({ 
             content: '✅ Waitlist panel successfully deployed!' 
         });
