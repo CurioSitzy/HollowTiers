@@ -7,18 +7,18 @@ import {
     PermissionFlagsBits 
 } from 'discord.js';
 
-// Custom Emoji ID khusus aset MCTiers
+// Ganti angka ID di bawah dengan ID Custom Emoji dari server kamu
 const EMOJIS = {
-    VERIFY: '1215283940123021312',   // Heart/Verify
-    CRYSTAL: '1215283938210410496',  // Crystal Icon
-    SWORD: '1215283925237514240',    // Sword Icon
-    AXE: '1215283923412979722',      // Axe Icon
-    UHC: '1215283921831723018',      // UHC / Golden Apple Icon
-    SMP: '1215283920191885372',      // SMP / Ender Pearl Icon
-    DIAPOT: '1215283918505775104',   // Pot / Potion Icon
-    NETHPOT: '1215283916895158282',  // NethOP / Helmet Icon
-    DIASMP: '1215283915150331904',   // DiaSMP / Chorus Icon
-    MACE: '1215283913455702026'      // Mace Icon
+    VERIFY: '1546313419068674189',   
+    CRYSTAL: '1546313326676414554',  
+    SWORD: '1546313218450788432',    
+    AXE: '1546313229402243185',      
+    UHC: '1546313237258043453',      
+    SMP: '1546313380170702878',      
+    DIAPOT: '1546313256849772654',   
+    NETHPOT: '1546313270510751764',  
+    DIASMP: '1546313297547231252',   
+    MACE: '1546313193989734510'      
 };
 
 export default {
