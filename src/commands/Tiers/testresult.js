@@ -1,8 +1,7 @@
-import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 
 // ID Channel
 const COMMAND_CHANNEL_ID = '1509184085015269516'; // ID Channel #result-commands
-const OUTPUT_CHANNEL_ID = '1500797205382959164';  // ID Channel #🏆・results
 
 // Daftar pilihan Rank dari LT5 sampai HT1
 const RANK_CHOICES = [
@@ -81,44 +80,12 @@ export default {
             });
         }
 
-        const player = interaction.options.getUser('player');
-        const tester = interaction.options.getUser('tester');
-        const region = interaction.options.getString('region');
-        const username = interaction.options.getString('username');
-        const gamemode = interaction.options.getString('gamemode');
-        const previousRank = interaction.options.getString('previous_rank');
-        const rankEarned = interaction.options.getString('rank_earned');
-
-        const targetChannel = await interaction.client.channels.fetch(OUTPUT_CHANNEL_ID).catch(() => null);
-
-        if (!targetChannel) {
-            return await interaction.reply({
-                content: `❌ Could not find output channel! Please check output channel ID.`,
+        // Response awal hanya untuk memberikan umpan balik ephemeral tanpa mengirim embed ganda
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: `⏳ Processing test result...`,
                 ephemeral: true
             });
         }
-
-        const embed = new EmbedBuilder()
-            .setColor(0xFF0000)
-            .setAuthor({ 
-                name: `${username}'s Test Results 🏆`, 
-                iconURL: player.displayAvatarURL() 
-            })
-            .addFields(
-                { name: 'Tester:', value: `<@${tester.id}>` },
-                { name: 'Region:', value: `\`${region}\`` },
-                { name: 'Username:', value: `\`${username}\`` },
-                { name: 'Previous Rank:', value: `\`${previousRank}\`` },
-                { name: 'Rank Earned:', value: `\`${rankEarned}\`` },
-                { name: 'Gamemode:', value: `\`${gamemode}\`` }
-            )
-            .setThumbnail(`https://visage.surgeplay.com/bust/512/${username}`);
-
-        await targetChannel.send({ content: `<@${player.id}>`, embeds: [embed] });
-
-        await interaction.reply({
-            content: `✅ Test result for **${username}** has been sent to <#${OUTPUT_CHANNEL_ID}>!`,
-            ephemeral: true
-        });
     }
 };
