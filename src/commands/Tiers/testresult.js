@@ -3,8 +3,9 @@ import { SlashCommandBuilder } from 'discord.js';
 // ID Channel
 const COMMAND_CHANNEL_ID = '1509184085015269516'; // ID Channel #result-commands
 
-// Daftar pilihan Rank dari LT5 sampai HT1
+// Daftar pilihan Rank dari N/A, LT5 sampai HT1
 const RANK_CHOICES = [
+    { name: 'N/A', value: 'N/A' },
     { name: 'LT5', value: 'LT5' },
     { name: 'HT5', value: 'HT5' },
     { name: 'LT4', value: 'LT4' },
@@ -55,6 +56,7 @@ export default {
                     { name: 'Crystal', value: 'Crystal' },
                     { name: 'Vanilla', value: 'Vanilla' },
                     { name: 'SMP', value: 'SMP' },
+                    { name: 'Diamond SMP', value: 'Diamond SMP' },
                     { name: 'Pot', value: 'Pot' },
                     { name: 'UHC', value: 'UHC' },
                     { name: 'Netherite OP', value: 'Netherite OP' },
