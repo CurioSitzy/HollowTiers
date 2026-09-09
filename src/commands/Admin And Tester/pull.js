@@ -4,7 +4,7 @@ import { waitlistService } from '../services/WaitlistService.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('pull')
-        .setDescription('Tarik player teratas dari waitlist')
+        .setDescription('Pull players from the waitlist')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
     async execute(interaction) {
