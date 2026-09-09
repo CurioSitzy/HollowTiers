@@ -45,6 +45,20 @@ const TYPE_ROLES = {
   CRACKED: '1546348575406166106',
 };
 
+// masukkan ID Role Waitlist per Gamemode di sini
+const WAITLIST_ROLES = {
+  crystal: '1546415409618485328',
+  sword: '1546413861387898903',
+  mace: '1546412993758236832',
+  axe: '1546413949552164884',
+  uhc: '1546413321228656720',
+  pot: '1546414095819997215',
+  smp: '1546413431089791027',
+  cart: '1546413989196472373',
+  diasmp: '1546413278195093545'
+  spearmace: '1546413406918152223'
+};
+
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
   kick: 'kick_failed',
@@ -324,13 +338,13 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            // Assign Waitlist Role
-            const waitlistRoleId = waitlistService.getWaitlistRole(queueModeKey);
-            if (waitlistRoleId && interaction.member) {
+            // Pasangkan Waitlist Role Spesifik Gamemode
+            const targetWaitlistRole = WAITLIST_ROLES[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
+            if (targetWaitlistRole && /^\d+$/.test(targetWaitlistRole) && interaction.member) {
               try {
-                await interaction.member.roles.add(waitlistRoleId);
+                await interaction.member.roles.add(targetWaitlistRole);
               } catch (err) {
-                logger.error(`Failed to assign waitlist role: ${err.message}`);
+                logger.error(`Failed to assign waitlist role for ${queueModeKey}: ${err.message}`);
               }
             }
 
@@ -350,13 +364,13 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            // Remove Waitlist Role
-            const waitlistRoleId = waitlistService.getWaitlistRole(queueModeKey);
-            if (waitlistRoleId && interaction.member) {
+            // Hapus Waitlist Role Spesifik Gamemode
+            const targetWaitlistRole = WAITLIST_ROLES[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
+            if (targetWaitlistRole && /^\d+$/.test(targetWaitlistRole) && interaction.member) {
               try {
-                await interaction.member.roles.remove(waitlistRoleId);
+                await interaction.member.roles.remove(targetWaitlistRole);
               } catch (err) {
-                logger.error(`Failed to remove waitlist role: ${err.message}`);
+                logger.error(`Failed to remove waitlist role for ${queueModeKey}: ${err.message}`);
               }
             }
 
@@ -411,7 +425,6 @@ export default {
                 const allRegionRoleIds = Object.values(REGION_ROLES);
                 const allTypeRoleIds = Object.values(TYPE_ROLES);
 
-                // Hapus role lama jika player mengganti pilihan
                 const oldRolesToRemove = interaction.member.roles.cache
                   .filter(role => allRegionRoleIds.includes(role.id) || allTypeRoleIds.includes(role.id))
                   .map(role => role.id);
@@ -424,13 +437,11 @@ export default {
 
                 const rolesToAdd = [];
 
-                // Cek & Tambah Role Region
                 const regionRoleId = REGION_ROLES[region];
                 if (regionRoleId) {
                   rolesToAdd.push(regionRoleId);
                 }
 
-                // Cek & Tambah Role Account Type
                 const typeRoleId = TYPE_ROLES[type];
                 if (typeRoleId) {
                   rolesToAdd.push(typeRoleId);
