@@ -29,6 +29,22 @@ import { enforceDefaultCommandPermissions } from '../utils/permissionGuard.js';
 import { waitlistService } from '../services/waitlistservice.js';
 import { WaitlistUpdater } from '../services/waitlistupdater.js';
 
+// ==========================================
+// CONFIGURATION ROLE ID (GANTI SESUAI ID ROLE DISCORD KAMU)
+// ==========================================
+const REGION_ROLES = {
+  AS: 'ID_ROLE_REGION_AS',
+  EU: 'ID_ROLE_REGION_EU',
+  NA: 'ID_ROLE_REGION_NA',
+  AU: 'ID_ROLE_REGION_AU',
+  SA: 'ID_ROLE_REGION_SA',
+};
+
+const TYPE_ROLES = {
+  PREMIUM: 'ID_ROLE_PREMIUM',
+  CRACKED: 'ID_ROLE_CRACKED',
+};
+
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
   kick: 'kick_failed',
@@ -215,7 +231,7 @@ export default {
 
             const regionInput = new TextInputBuilder()
               .setCustomId('verify_region')
-              .setLabel('Region (NA / EU / AS / AU)')
+              .setLabel('Region (AS / EU / NA / AU / SA)')
               .setStyle(TextInputStyle.Short)
               .setPlaceholder('e.g. AS')
               .setRequired(true);
@@ -371,31 +387,55 @@ export default {
           const customId = interaction.customId;
 
           if (customId.startsWith('modal_verify_form')) {
-            // Defer reply terlebih dahulu agar terhindar dari timeout 3 detik Discord
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
             try {
-              const ign = interaction.fields.getTextInputValue('verify_ign');
-              const region = interaction.fields.getTextInputValue('verify_region');
-              const type = interaction.fields.getTextInputValue('verify_type');
+              const ign = interaction.fields.getTextInputValue('verify_ign').trim();
+              const region = interaction.fields.getTextInputValue('verify_region').trim().toUpperCase();
+              const type = interaction.fields.getTextInputValue('verify_type').trim().toUpperCase();
 
               let nicknameUpdated = true;
 
-              // Ubah Nickname Discord Player
+              // 1. Ubah Nickname Discord Player
               try {
                 if (interaction.guild && interaction.member) {
-                  await interaction.member.setNickname(`${ign} [${region.toUpperCase()}]`);
+                  await interaction.member.setNickname(`${ign} [${region}]`);
                 }
               } catch (err) {
                 nicknameUpdated = false;
                 logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
               }
 
-              // Simpan Data Player ke Cache Service
+              // 2. Tambahkan Role Region & Account Type
+              if (interaction.guild && interaction.member) {
+                const rolesToAdd = [];
+
+                // Cek Role Region
+                const regionRoleId = REGION_ROLES[region];
+                if (regionRoleId && regionRoleId !== '1500479159456235533' && regionRoleId !== '1500479159456235535' && regionRoleId !== '1500479159456235534' && regionRoleId !== '1500479159456235532' && regionRoleId !== '1547158919649165413') {
+                  rolesToAdd.push(regionRoleId);
+                }
+
+                // Cek Role Account Type
+                const typeRoleId = TYPE_ROLES[type];
+                if (typeRoleId && typeRoleId !== '1546348570293051444' && typeRoleId !== '1546348575406166106') {
+                  rolesToAdd.push(typeRoleId);
+                }
+
+                if (rolesToAdd.length > 0) {
+                  try {
+                    await interaction.member.roles.add(rolesToAdd);
+                  } catch (err) {
+                    logger.error(`Failed to add verification roles for ${interaction.user.tag}: ${err.message}`);
+                  }
+                }
+              }
+
+              // 3. Simpan Data Player ke Cache Service
               if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
                 waitlistService.setPlayerStats(interaction.user.id, { 
                   ign, 
-                  region: region.toUpperCase(), 
+                  region, 
                   type 
                 });
               } else {
@@ -407,7 +447,7 @@ export default {
                 .setTitle('✅ Verification Saved!')
                 .setDescription(
                   `**IGN:** \`${ign}\`\n` +
-                  `**Region:** \`${region.toUpperCase()}\`\n` +
+                  `**Region:** \`${region}\`\n` +
                   `**Type:** \`${type}\`\n\n` +
                   (nicknameUpdated ? '' : `⚠️ *Note: Could not update nickname due to Discord role hierarchy.* \n\n`) +
                   `You can now select a Gamemode from the panel and click **Join Queue**!`
