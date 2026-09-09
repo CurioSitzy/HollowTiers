@@ -20,8 +20,8 @@ const BUTTON_CONFIG = {
     NETHOP: { id: '1546304884230586408', fallback: '🔥', label: 'NethOP', customId: 'gm_nethop' },
     DIAMONDSMP: { id: '1546307214967570582', fallback: '💎', label: 'DiamondSMP', customId: 'gm_diamondsmp' },
     MACE: { id: '1546304790072393809', fallback: '🔨', label: 'Mace', customId: 'gm_mace' },
-    CART: { id: '1507231753352253440', fallback: '🛒', label: 'Cart', customId: 'gm_cart' },
-    SPEARMACE: { id: '1507226546350592110', fallback: '🗡️', label: 'Spear Mace', customId: 'gm_spearmace' }
+    CART: { id: '1546344405647233034', fallback: '🛒', label: 'Cart', customId: 'gm_cart' },
+    SPEARMACE: { id: '1546346223009669192', fallback: '🗡️', label: 'Spear Mace', customId: 'gm_spearmace' }
 };
 
 /**
