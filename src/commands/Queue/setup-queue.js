@@ -39,7 +39,7 @@ export default {
       const modeKey = interaction.options.getString('gamemode');
       const testerRole = interaction.options.getRole('tester_role');
 
-      // Simpan role tester untuk gamemode ini secara otomatis
+      // Simpan role tester
       waitlistService.setTesterRole(modeKey, testerRole.id);
 
       // Buat pesan embed & tombol
