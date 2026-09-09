@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { waitlistService } from '../services/WaitlistService.js';
+import { waitlistService } from '../../services/waitlistservice.js';
 
 export default {
     data: new SlashCommandBuilder()
