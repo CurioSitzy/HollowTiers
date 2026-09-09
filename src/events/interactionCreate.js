@@ -368,47 +368,60 @@ export default {
 
         // --- HANDLER MODAL SUBMIT ---
         } else if (interaction.isModalSubmit()) {
-          const [modalAction] = interaction.customId.split(':');
+          const customId = interaction.customId;
 
-          if (modalAction === 'modal_verify_form') {
-            const ign = interaction.fields.getTextInputValue('verify_ign');
-            const region = interaction.fields.getTextInputValue('verify_region');
-            const type = interaction.fields.getTextInputValue('verify_type');
+          if (customId.startsWith('modal_verify_form')) {
+            // Defer reply terlebih dahulu agar terhindar dari timeout 3 detik Discord
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
-            let nicknameUpdated = true;
-
-            // 1. Ubah Nickname Discord Player (Aman dari crash jika role bot dibawah user / user = owner)
             try {
-              if (interaction.guild && interaction.member) {
-                await interaction.member.setNickname(`${ign} [${region.toUpperCase()}]`);
+              const ign = interaction.fields.getTextInputValue('verify_ign');
+              const region = interaction.fields.getTextInputValue('verify_region');
+              const type = interaction.fields.getTextInputValue('verify_type');
+
+              let nicknameUpdated = true;
+
+              // Ubah Nickname Discord Player
+              try {
+                if (interaction.guild && interaction.member) {
+                  await interaction.member.setNickname(`${ign} [${region.toUpperCase()}]`);
+                }
+              } catch (err) {
+                nicknameUpdated = false;
+                logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
               }
-            } catch (err) {
-              nicknameUpdated = false;
-              logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
+
+              // Simpan Data Player ke Cache Service
+              if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
+                waitlistService.setPlayerStats(interaction.user.id, { 
+                  ign, 
+                  region: region.toUpperCase(), 
+                  type 
+                });
+              } else {
+                logger.error('waitlistService.setPlayerStats is not defined or not a function!');
+              }
+
+              const successEmbed = new EmbedBuilder()
+                .setColor(0x57F287)
+                .setTitle('✅ Verification Saved!')
+                .setDescription(
+                  `**IGN:** \`${ign}\`\n` +
+                  `**Region:** \`${region.toUpperCase()}\`\n` +
+                  `**Type:** \`${type}\`\n\n` +
+                  (nicknameUpdated ? '' : `⚠️ *Note: Could not update nickname due to Discord role hierarchy.* \n\n`) +
+                  `You can now select a Gamemode from the panel and click **Join Queue**!`
+                );
+
+              return await interaction.editReply({
+                embeds: [successEmbed]
+              });
+            } catch (submitErr) {
+              logger.error('Error executing modal verification submit:', submitErr);
+              return await interaction.editReply({
+                content: '❌ An error occurred while processing your verification. Please try again.'
+              });
             }
-
-            // 2. Simpan Data Player ke Cache Service
-            waitlistService.setPlayerStats(interaction.user.id, { 
-              ign, 
-              region: region.toUpperCase(), 
-              type 
-            });
-
-            const successEmbed = new EmbedBuilder()
-              .setColor(0x57F287)
-              .setTitle('✅ Verification Saved!')
-              .setDescription(
-                `**IGN:** \`${ign}\`\n` +
-                `**Region:** \`${region.toUpperCase()}\`\n` +
-                `**Type:** \`${type}\`\n\n` +
-                (nicknameUpdated ? '' : `⚠️ *Note: Could not update nickname due to Discord role hierarchy.* \n\n`) +
-                `You can now select a Gamemode from the panel and click **Join Queue**!`
-              );
-
-            return await interaction.reply({
-              embeds: [successEmbed],
-              ephemeral: true
-            });
           }
         }
       } catch (error) {
