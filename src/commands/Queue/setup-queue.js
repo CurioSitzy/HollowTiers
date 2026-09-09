@@ -39,18 +39,23 @@ export default {
       const modeKey = interaction.options.getString('gamemode');
       const testerRole = interaction.options.getRole('tester_role');
 
-      // Simpan role tester
+      // 1. Simpan ID role tester ke service
       waitlistService.setTesterRole(modeKey, testerRole.id);
 
-      // Buat pesan embed & tombol
+      // 2. Buat embed & tombol
       const { embed, components } = WaitlistUpdater.buildMessage(modeKey, waitlistService);
 
+      if (!embed) {
+        return await interaction.editReply({ content: '❌ Invalid gamemode selection.' });
+      }
+
+      // 3. Kirim panel ke channel
       const queueMessage = await interaction.channel.send({
         embeds: [embed],
         components: components
       });
 
-      // Simpan ID pesan untuk update otomatis
+      // 4. Simpan ID pesan
       waitlistService.setMessageId(modeKey, queueMessage.id);
 
       await interaction.editReply({ 
