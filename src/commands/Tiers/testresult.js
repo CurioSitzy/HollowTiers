@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 
 // ID Channel
 const COMMAND_CHANNEL_ID = '1509184085015269516'; // ID Channel #result-commands
@@ -33,14 +33,14 @@ export default {
                 .setRequired(true))
         .addStringOption(option => 
             option.setName('region')
-                .setDescription('Region (e.g. NA, EU, AS, AU)')
+                .setDescription('Region (e.g. NorthAmerica, Europe, Asia, Australia, SouthAmerica)')
                 .setRequired(true)
                 .addChoices(
-                    { name: 'NA', value: 'NA' },
-                    { name: 'EU', value: 'EU' },
-                    { name: 'AS', value: 'AS' },
-                    { name: 'AU', value: 'AU' },
-                    { name: 'SA', value: 'SA' }
+                    { name: 'NorthAmerica', value: 'NorthAmerica' },
+                    { name: 'Europe', value: 'Europe' },
+                    { name: 'Asia', value: 'Asia' },
+                    { name: 'Australia', value: 'Australia' },
+                    { name: 'SouthAmerica', value: 'SouthAmerica' }
                 ))
         .addStringOption(option => 
             option.setName('username')
@@ -75,19 +75,21 @@ export default {
                 .addChoices(...RANK_CHOICES)),
 
     async execute(interaction) {
+        // Defer reply secepat mungkin untuk mencegah timeout & error acknowledge
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        }
+
+        // Cek ID Channel
         if (interaction.channelId !== COMMAND_CHANNEL_ID) {
-            return await interaction.reply({
-                content: `❌ This command can only be used in <#${COMMAND_CHANNEL_ID}>!`,
-                ephemeral: true
+            return await interaction.editReply({
+                content: `❌ This command can only be used in <#${COMMAND_CHANNEL_ID}>!`
             });
         }
 
-        // Response awal hanya untuk memberikan umpan balik ephemeral tanpa mengirim embed ganda
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({
-                content: `⏳ Processing test result...`,
-                ephemeral: true
-            });
-        }
+        // Lanjutkan logika pengolahan data / kirim embed di sini...
+        await interaction.editReply({
+            content: `⏳ Processing test result...`
+        });
     }
 };
