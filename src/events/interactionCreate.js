@@ -97,7 +97,7 @@ export default {
         InteractionHelper.patchInteractionResponses(interaction);
         ResponseCoordinator.attach(interaction);
 
-        // --- SLASH COMMANDS HANDLER ---
+        // --- HANDLER SLASH COMMANDS ---
         if (interaction.isChatInputCommand()) {
           try {
             logger.info(`Command executed: /${interaction.commandName} by ${interaction.user.tag}`, {
@@ -209,7 +209,7 @@ export default {
             }, interactionTraceContext));
           }
 
-        // --- AUTOCOMPLETE HANDLER ---
+        // --- HANDLER AUTOCOMPLETE ---
         } else if (interaction.isAutocomplete()) {
           const autocompleteCommand = client.commands.get(interaction.commandName);
           if (autocompleteCommand?.autocomplete) {
@@ -226,11 +226,11 @@ export default {
             return;
           }
 
-        // --- BUTTON HANDLER ---
+        // --- HANDLER BUTTON ---
         } else if (interaction.isButton()) {
           const customId = interaction.customId;
 
-          // 1. VERIFY BUTTON (waitlist_verify)
+          // 1. TOMBOL VERIFY (waitlist_verify)
           if (customId === 'waitlist_verify') {
             const modal = new ModalBuilder()
               .setCustomId('modal_verify_form:global')
@@ -266,50 +266,49 @@ export default {
             return await interaction.showModal(modal);
           }
 
-          // 2. GAMEMODE BUTTONS (gm_crystal, gm_sword, gm_spearmace, etc.)
+          // 2. TOMBOL GAMEMODE (gm_crystal, gm_sword, gm_spearmace, dll)
           if (customId.startsWith('gm_')) {
+            // Langsung kirim deferReply agar Discord tidak timeout (menghindari 'didn't respond in time')
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
             const modeKey = customId.split('_')[1];
 
-            // Check if user has verified their IGN & Region
+            // Cek apakah user sudah memverifikasi IGN & Region
             const stats = waitlistService ? waitlistService.getPlayerStats(interaction.user.id) : null;
             if (!stats) {
-              return await interaction.reply({ 
-                content: '❌ You must click the **Verify / Change** button first to register your IGN & Region!', 
-                ephemeral: true 
+              return await interaction.editReply({ 
+                content: '❌ You must click the **Verify / Change** button first to register your IGN & Region!'
               });
             }
 
             const targetWaitlistRole = WAITLIST_ROLES[modeKey];
             if (!targetWaitlistRole || !/^\d+$/.test(targetWaitlistRole)) {
-              return await interaction.reply({
-                content: `❌ The Role ID for **${modeKey.toUpperCase()}** is missing or invalid in \`WAITLIST_ROLES\`!`,
-                ephemeral: true
+              return await interaction.editReply({
+                content: `❌ The Role ID for **${modeKey.toUpperCase()}** is missing or invalid in \`WAITLIST_ROLES\`!`
               });
             }
 
             const member = interaction.member;
             if (!member) {
-              return await interaction.reply({ content: '❌ Could not find member data in server.', ephemeral: true });
+              return await interaction.editReply({ content: '❌ Could not find member data in server.' });
             }
 
             const hasRole = member.roles.cache.has(targetWaitlistRole);
 
-            // Toggle Role Logic: If player already has the role, remove it. If not, add it.
+            // Logika Toggle Role: Jika player sudah punya role maka dicopot, jika belum maka ditambahkan
             if (hasRole) {
               try {
                 await member.roles.remove(targetWaitlistRole);
                 if (waitlistService && typeof waitlistService.removePlayer === 'function') {
                   waitlistService.removePlayer(modeKey, interaction.user.id);
                 }
-                return await interaction.reply({
-                  content: `➖ Removed **${modeKey.toUpperCase()}** waitlist role from your profile.`,
-                  ephemeral: true
+                return await interaction.editReply({
+                  content: `➖ Removed **${modeKey.toUpperCase()}** waitlist role from your profile.`
                 });
               } catch (err) {
                 logger.error(`Failed to remove role ${modeKey}: ${err.message}`);
-                return await interaction.reply({
-                  content: `⚠️ Failed to remove role. Please check bot permissions and role hierarchy!`,
-                  ephemeral: true
+                return await interaction.editReply({
+                  content: `⚠️ Failed to remove role. Please check bot permissions and role hierarchy!`
                 });
               }
             } else {
@@ -318,24 +317,22 @@ export default {
                 if (waitlistService && typeof waitlistService.addPlayer === 'function') {
                   waitlistService.addPlayer(modeKey, interaction.user);
                 }
-                return await interaction.reply({
-                  content: `✅ Successfully joined the **${modeKey.toUpperCase()}** waitlist! The role has been assigned.`,
-                  ephemeral: true
+                return await interaction.editReply({
+                  content: `✅ Successfully joined the **${modeKey.toUpperCase()}** waitlist! The role has been assigned.`
                 });
               } catch (err) {
                 logger.error(`Failed to add role ${modeKey}: ${err.message}`);
-                return await interaction.reply({
-                  content: `⚠️ Joined waitlist, but failed to assign the role. Please check bot permissions!`,
-                  ephemeral: true
+                return await interaction.editReply({
+                  content: `⚠️ Joined waitlist, but failed to assign the role. Please check bot permissions!`
                 });
               }
             }
           }
 
-          // 3. EMBED WAITLIST BUTTONS (waitlist_join, waitlist_leave, waitlist_toggle)
+          // 3. TOMBOL DI DALAM EMBED ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
           const [action, queueModeKey] = customId.split(':');
 
-          // TOGGLE QUEUE STATUS
+          // TOGGLE STATUS QUEUE
           if (action === 'waitlist_toggle') {
             const isTester = waitlistService ? waitlistService.isTester(interaction.member, queueModeKey) : false;
             const isAdmin = interaction.member?.permissions.has(PermissionFlagsBits.Administrator);
@@ -416,7 +413,7 @@ export default {
             return;
           }
 
-          // Fallback to general button handler
+          // Fallback ke handler button umum jika ada
           const button = client.buttons?.get(action);
           if (button) {
             try {
@@ -429,7 +426,7 @@ export default {
             }
           }
 
-        // --- MODAL SUBMIT HANDLER ---
+        // --- HANDLER MODAL SUBMIT ---
         } else if (interaction.isModalSubmit()) {
           const customId = interaction.customId;
 
@@ -443,7 +440,7 @@ export default {
 
               let nicknameUpdated = true;
 
-              // 1. Update Discord Nickname
+              // 1. Ubah Nickname Discord Player
               try {
                 if (interaction.guild && interaction.member) {
                   await interaction.member.setNickname(`${ign} [${region}]`);
@@ -453,7 +450,7 @@ export default {
                 logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
               }
 
-              // 2. Add Region & Account Type Roles
+              // 2. Tambahkan Role Region & Account Type
               if (interaction.guild && interaction.member) {
                 const allRegionRoleIds = Object.values(REGION_ROLES);
                 const allTypeRoleIds = Object.values(TYPE_ROLES);
@@ -489,7 +486,7 @@ export default {
                 }
               }
 
-              // 3. Store Player Stats in Waitlist Cache
+              // 3. Simpan Data Player ke Cache Service
               if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
                 waitlistService.setPlayerStats(interaction.user.id, { 
                   ign, 
