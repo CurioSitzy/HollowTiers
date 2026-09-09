@@ -4,7 +4,8 @@ import {
   TextInputBuilder, 
   TextInputStyle, 
   ActionRowBuilder, 
-  EmbedBuilder 
+  EmbedBuilder,
+  PermissionFlagsBits
 } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { getGuildConfig } from '../services/config/guildConfig.js';
@@ -199,79 +200,67 @@ export default {
 
         // --- HANDLER BUTTON ---
         } else if (interaction.isButton()) {
+          const [action, modeKey] = interaction.customId.split(':');
 
-          // JOIN QUEUE
-          if (interaction.customId === 'waitlist_join') {
-            const requiredRoleId = waitlistService.getRequiredRoleId?.();
-            if (requiredRoleId && !interaction.member?.roles.cache.has(requiredRoleId)) {
+          // 1. TOGGLE QUEUE STATUS (OPEN / CLOSE)
+          if (action === 'waitlist_toggle') {
+            const isTester = waitlistService.isTester(interaction.member, modeKey);
+            const isAdmin = interaction.member?.permissions.has(PermissionFlagsBits.Administrator);
+
+            if (!isTester && !isAdmin) {
               return await interaction.reply({
-                content: `❌ You do not have the required role (<@&${requiredRoleId}>) to join this waitlist.`,
+                content: `❌ You do not have the required tester role for **${modeKey?.toUpperCase() || 'this mode'}** to open/close this queue!`,
                 ephemeral: true
               });
             }
 
-            const result = waitlistService.addPlayer(interaction.user);
+            await interaction.deferUpdate().catch(() => {});
+            waitlistService.toggleOpen(modeKey);
+
+            try {
+              await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, modeKey, waitlistService);
+            } catch (err) {
+              logger.error(`Failed updating waitlist on toggle for ${modeKey}:`, err);
+            }
+            return;
+          }
+
+          // 2. JOIN QUEUE
+          if (action === 'waitlist_join') {
+            const result = waitlistService.addPlayer(modeKey, interaction.user);
             if (!result.success) {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            await interaction.deferUpdate();
+            await interaction.deferUpdate().catch(() => {});
             try {
-              await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, waitlistService);
+              await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, modeKey, waitlistService);
             } catch (err) {
-              logger.error('Failed updating waitlist on join:', err);
+              logger.error(`Failed updating waitlist on join for ${modeKey}:`, err);
             }
             return;
           }
 
-          // LEAVE QUEUE
-          if (interaction.customId === 'waitlist_leave') {
-            const result = waitlistService.removePlayer(interaction.user.id);
+          // 3. LEAVE QUEUE
+          if (action === 'waitlist_leave') {
+            const result = waitlistService.removePlayer(modeKey, interaction.user.id);
             if (!result.success) {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            await interaction.deferUpdate();
+            await interaction.deferUpdate().catch(() => {});
             try {
-              await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, waitlistService);
+              await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, modeKey, waitlistService);
             } catch (err) {
-              logger.error('Failed updating waitlist on leave:', err);
+              logger.error(`Failed updating waitlist on leave for ${modeKey}:`, err);
             }
             return;
           }
 
-          // TOGGLE QUEUE STATUS (OPEN / CLOSE)
-          if (interaction.customId === 'waitlist_toggle') {
-            await interaction.deferUpdate();
-
-            if (typeof waitlistService.toggleOpen === 'function') {
-              waitlistService.toggleOpen();
-            } else if (typeof waitlistService.setOpen === 'function') {
-              waitlistService.setOpen(!waitlistService.isOpen);
-            } else {
-              waitlistService.isOpen = !waitlistService.isOpen;
-            }
-
-            try {
-              await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, waitlistService);
-            } catch (err) {
-              logger.error('Failed updating waitlist on toggle:', err);
-            }
-            return;
-          }
-
-          // VERIFY MODAL BUTTON
-          if (interaction.customId === 'waitlist_verify') {
-            const requiredRoleId = waitlistService.getRequiredRoleId?.();
-            if (requiredRoleId && !interaction.member?.roles.cache.has(requiredRoleId)) {
-              return await interaction.reply({
-                content: `❌ This feature is restricted to members with the <@&${requiredRoleId}> role!`,
-                ephemeral: true
-              });
-            }
-
+          // 4. VERIFY MODAL BUTTON
+          if (action === 'waitlist_verify') {
             const modal = new ModalBuilder()
-              .setCustomId('modal_verify_form')
+              .setCustomId(`modal_verify_form:${modeKey || 'default'}`)
               .setTitle('Player Verification');
 
             const ignInput = new TextInputBuilder()
@@ -304,12 +293,11 @@ export default {
             return await interaction.showModal(modal);
           }
 
-          // General Button Handlers...
-          const [customId, ...args] = interaction.customId.split(':');
-          const button = client.buttons?.get(customId);
+          // General Button Handlers Fallback...
+          const button = client.buttons?.get(action);
           if (button) {
             try {
-              await button.execute(interaction, client, args);
+              await button.execute(interaction, client, [modeKey]);
             } catch (error) {
               await handleInteractionError(interaction, error, withTraceContext({
                 type: 'button',
@@ -320,8 +308,9 @@ export default {
 
         // --- HANDLER MODAL SUBMIT ---
         } else if (interaction.isModalSubmit()) {
+          const [modalAction, modeKey] = interaction.customId.split(':');
 
-          if (interaction.customId === 'modal_verify_form') {
+          if (modalAction === 'modal_verify_form') {
             const ign = interaction.fields.getTextInputValue('verify_ign');
             const region = interaction.fields.getTextInputValue('verify_region');
             const type = interaction.fields.getTextInputValue('verify_type');
@@ -332,13 +321,14 @@ export default {
               // Nickname update failed (hierarchy or permissions)
             }
 
-            const result = waitlistService.addPlayer(interaction.user);
+            const targetMode = modeKey || 'mace';
+            const result = waitlistService.addPlayer(targetMode, interaction.user);
 
             let statusMessage = '';
             if (result.success) {
               statusMessage = 'You have been automatically added to the waitlist queue!';
               if (interaction.message?.id) {
-                await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, waitlistService).catch(() => {});
+                await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, targetMode, waitlistService).catch(() => {});
               }
             } else {
               statusMessage = `Verification saved, but could not join queue: ${result.reason}`;
