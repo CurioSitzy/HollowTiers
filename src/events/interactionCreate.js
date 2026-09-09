@@ -215,7 +215,9 @@ export default {
             }
 
             await interaction.deferUpdate().catch(() => {});
-            waitlistService.toggleOpen(modeKey);
+            
+            // OPER INTERACTION.USER.ID AGAR BOT TAHU SIAPA TESTER YANG MEMBUKA QUEUE
+            waitlistService.toggleOpen(modeKey, interaction.user.id);
 
             try {
               await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, modeKey, waitlistService);
