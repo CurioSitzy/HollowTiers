@@ -1,8 +1,8 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const waitlistService = require('../../services/waitlistservice');
-const waitlistUpdater = require('../../services/waitlistupdater');
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import waitlistService from '../../services/waitlistservice.js';
+import waitlistUpdater from '../../services/waitlistupdater.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('pull')
     .setDescription('Pull the next player from the waitlist queue')
