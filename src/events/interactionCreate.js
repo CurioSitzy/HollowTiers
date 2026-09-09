@@ -30,7 +30,7 @@ import { waitlistService } from '../services/waitlistservice.js';
 import { WaitlistUpdater } from '../services/waitlistupdater.js';
 
 // ==========================================
-// CONFIGURATION ROLE ID (GANTI SESUAI ID ROLE DISCORD KAMU)
+// CONFIGURATION ROLE ID
 // ==========================================
 const REGION_ROLES = {
   AS: '1500479159456235533',
@@ -408,17 +408,31 @@ export default {
 
               // 2. Tambahkan Role Region & Account Type
               if (interaction.guild && interaction.member) {
+                const allRegionRoleIds = Object.values(REGION_ROLES);
+                const allTypeRoleIds = Object.values(TYPE_ROLES);
+
+                // Hapus role lama jika player mengganti pilihan
+                const oldRolesToRemove = interaction.member.roles.cache
+                  .filter(role => allRegionRoleIds.includes(role.id) || allTypeRoleIds.includes(role.id))
+                  .map(role => role.id);
+
+                if (oldRolesToRemove.length > 0) {
+                  await interaction.member.roles.remove(oldRolesToRemove).catch(err => {
+                    logger.warn(`Could not remove old roles for ${interaction.user.tag}: ${err.message}`);
+                  });
+                }
+
                 const rolesToAdd = [];
 
-                // Cek Role Region
+                // Cek & Tambah Role Region
                 const regionRoleId = REGION_ROLES[region];
-                if (regionRoleId && regionRoleId !== '1500479159456235533' && regionRoleId !== '1500479159456235535' && regionRoleId !== '1500479159456235534' && regionRoleId !== '1500479159456235532' && regionRoleId !== '1547158919649165413') {
+                if (regionRoleId) {
                   rolesToAdd.push(regionRoleId);
                 }
 
-                // Cek Role Account Type
+                // Cek & Tambah Role Account Type
                 const typeRoleId = TYPE_ROLES[type];
-                if (typeRoleId && typeRoleId !== '1546348570293051444' && typeRoleId !== '1546348575406166106') {
+                if (typeRoleId) {
                   rolesToAdd.push(typeRoleId);
                 }
 
