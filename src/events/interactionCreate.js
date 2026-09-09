@@ -28,6 +28,10 @@ import { isCollectorManagedComponent } from '../utils/collectorComponents.js';
 import { ResponseCoordinator } from '../utils/responseCoordinator.js';
 import { enforceDefaultCommandPermissions } from '../utils/permissionGuard.js';
 
+// Import service & updater waitlist lu
+import { waitlistService } from '../services/waitlistservice.js';
+import { WaitlistUpdater } from '../services/waitlistupdater.js';
+
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
   kick: 'kick_failed',
@@ -315,6 +319,33 @@ export default {
             }
           }
         } else if (interaction.isButton()) {
+          // --- HANDLER TOMBOL QUEUE / WAITLIST ---
+          if (interaction.customId === 'waitlist_join') {
+            const result = waitlistService.addPlayer(interaction.user);
+            if (!result.success) {
+              return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
+            }
+            await interaction.deferUpdate();
+            return await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, waitlistService);
+          }
+
+          if (interaction.customId === 'waitlist_leave') {
+            const queue = waitlistService.getQueue();
+            const index = queue.findIndex(p => p.id === interaction.user.id);
+            if (index === -1) {
+              return await interaction.reply({ content: '❌ Kamu tidak sedang berada di dalam queue.', ephemeral: true });
+            }
+            queue.splice(index, 1);
+            await interaction.deferUpdate();
+            return await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, waitlistService);
+          }
+
+          if (interaction.customId === 'waitlist_toggle') {
+            waitlistService.setOpen(!waitlistService.isOpen);
+            await interaction.deferUpdate();
+            return await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, waitlistService);
+          }
+
           // --- HANDLER TOMBOL VERIFY WAITLIST ---
           if (interaction.customId === 'waitlist_verify') {
             const modal = new ModalBuilder()
