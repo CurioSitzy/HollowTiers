@@ -1,7 +1,13 @@
+import fs from 'fs';
+import path from 'path';
+
+const DATA_FILE = path.join(process.cwd(), 'playerData.json');
+
 export class WaitlistService {
   constructor() {
-    // Penyimpanan data verifikasi pemain (IGN, Region, Type)
+    // Inisialisasi penyimpanan data pemain dari file JSON lokal
     this.playerData = new Map();
+    this.loadPlayerData();
 
     // Inisialisasi daftar gamemode beserta propertinya
     this.modes = new Map([
@@ -15,13 +21,39 @@ export class WaitlistService {
       ['smp', { name: 'SMP', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
       ['diasmp', { name: 'Dia SMP', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
       ['spearmace', { name: 'Spearmace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['cart', { name: 'Cart', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }]
+      ['cart', { name: 'Cart', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
+      ['nethop', { name: 'NetHop', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }]
     ]);
+  }
+
+  // Load data dari playerData.json saat bot pertama kali menyala
+  loadPlayerData() {
+    try {
+      if (fs.existsSync(DATA_FILE)) {
+        const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+        const parsed = JSON.parse(rawData);
+        this.playerData = new Map(Object.entries(parsed));
+      }
+    } catch (err) {
+      console.error('Failed to load playerData.json:', err);
+      this.playerData = new Map();
+    }
+  }
+
+  // Simpan data ke playerData.json setiap kali ada player yang verifikasi
+  savePlayerData() {
+    try {
+      const obj = Object.fromEntries(this.playerData);
+      fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), 'utf8');
+    } catch (err) {
+      console.error('Failed to save playerData.json:', err);
+    }
   }
 
   // Simpan data verifikasi pemain
   setPlayerStats(userId, data) {
     this.playerData.set(userId, data);
+    this.savePlayerData(); // Auto-save ke disk
   }
 
   // Ambil data verifikasi pemain
@@ -29,28 +61,20 @@ export class WaitlistService {
     return this.playerData.get(userId) || null;
   }
 
-  // Mengambil data mode berdasarkan kunci (misal: 'mace', 'spearmace')
   getMode(modeKey) {
     return this.modes.get(modeKey?.toLowerCase());
   }
 
-  // Menyimpan ID Role tester dari komando /setup-queue
   setTesterRole(modeKey, roleId) {
     const mode = this.getMode(modeKey);
-    if (mode) {
-      mode.testerRoleId = roleId;
-    }
+    if (mode) mode.testerRoleId = roleId;
   }
 
-  // Menyimpan ID Message panel untuk di-edit otomatis
   setMessageId(modeKey, messageId) {
     const mode = this.getMode(modeKey);
-    if (mode) {
-      mode.messageId = messageId;
-    }
+    if (mode) mode.messageId = messageId;
   }
 
-  // Memeriksa apakah user memiliki role tester sesuai mode
   isTester(member, modeKey) {
     if (!member || !modeKey) return false;
     const mode = this.getMode(modeKey);
@@ -58,7 +82,6 @@ export class WaitlistService {
     return member.roles.cache.has(mode.testerRoleId);
   }
 
-  // Buka/Tutup antrean serta simpan ID Tester yang menekan tombol
   toggleOpen(modeKey, userId) {
     const mode = this.getMode(modeKey);
     if (!mode) return false;
@@ -80,7 +103,6 @@ export class WaitlistService {
     return mode.isOpen;
   }
 
-  // Menambahkan pemain ke antrean
   addPlayer(modeKey, user) {
     const mode = this.getMode(modeKey);
     if (!mode) return { success: false, reason: 'Invalid game mode.' };
@@ -93,7 +115,6 @@ export class WaitlistService {
     return { success: true };
   }
 
-  // Menghapus pemain dari antrean
   removePlayer(modeKey, userId) {
     const mode = this.getMode(modeKey);
     if (!mode) return { success: false, reason: 'Invalid game mode.' };
