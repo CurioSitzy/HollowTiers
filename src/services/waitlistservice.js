@@ -1,16 +1,16 @@
 export class WaitlistService {
   constructor() {
     this.gamemodes = {
-      mace: { name: 'Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      sword: { name: 'Sword', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      axe: { name: 'Axe', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      crystal: { name: 'Crystal', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      diapot: { name: 'Dia Pot', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      uhc: { name: 'UHC', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      smp: { name: 'SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      diasmp: { name: 'Dia SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      cart: { name: 'Cart', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
-      spearmace: { name: 'Spear Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null }
+      mace: { name: 'Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      sword: { name: 'Sword', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      axe: { name: 'Axe', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      crystal: { name: 'Crystal', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      diapot: { name: 'Dia Pot', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      uhc: { name: 'UHC', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      smp: { name: 'SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      diasmp: { name: 'Dia SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      cart: { name: 'Cart', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
+      spearmace: { name: 'Spear Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null }
     };
   }
 
@@ -35,14 +35,22 @@ export class WaitlistService {
     return member.roles.cache.has(mode.testerRoleId);
   }
 
-  toggleOpen(modeKey) {
+  toggleOpen(modeKey, user) {
     const mode = this.getMode(modeKey);
     if (!mode) return false;
 
     mode.isOpen = !mode.isOpen;
     if (mode.isOpen) {
+      // Otomatis mengambil tanggal, bulan, dan tahun saat queue dibuka
       const now = new Date();
-      mode.lastSession = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      mode.lastSession = now.toLocaleDateString('en-GB', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      }); // Contoh hasil: "09 Sept 2026"
+      mode.openedBy = user ? user.id : null;
+    } else {
+      mode.openedBy = null;
     }
     return mode.isOpen;
   }
