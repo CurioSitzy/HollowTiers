@@ -45,7 +45,7 @@ const TYPE_ROLES = {
   CRACKED: '1546348575406166106',
 };
 
-// masukkan ID Role Waitlist per Gamemode di sini
+// Waitlist Role IDs per Gamemode
 const WAITLIST_ROLES = {
   crystal: '1546415409618485328',
   sword: '1546413861387898903',
@@ -97,7 +97,7 @@ export default {
         InteractionHelper.patchInteractionResponses(interaction);
         ResponseCoordinator.attach(interaction);
 
-        // --- HANDLER SLASH COMMANDS ---
+        // --- SLASH COMMANDS HANDLER ---
         if (interaction.isChatInputCommand()) {
           try {
             logger.info(`Command executed: /${interaction.commandName} by ${interaction.user.tag}`, {
@@ -209,7 +209,7 @@ export default {
             }, interactionTraceContext));
           }
 
-        // --- HANDLER AUTOCOMPLETE ---
+        // --- AUTOCOMPLETE HANDLER ---
         } else if (interaction.isAutocomplete()) {
           const autocompleteCommand = client.commands.get(interaction.commandName);
           if (autocompleteCommand?.autocomplete) {
@@ -226,11 +226,11 @@ export default {
             return;
           }
 
-        // --- HANDLER BUTTON ---
+        // --- BUTTON HANDLER ---
         } else if (interaction.isButton()) {
           const customId = interaction.customId;
 
-          // 1. TOMBOL VERIFY (waitlist_verify)
+          // 1. VERIFY BUTTON (waitlist_verify)
           if (customId === 'waitlist_verify') {
             const modal = new ModalBuilder()
               .setCustomId('modal_verify_form:global')
@@ -266,43 +266,78 @@ export default {
             return await interaction.showModal(modal);
           }
 
-          // 2. TOMBOL GAMEMODE (gm_crystal, gm_sword, gm_mace, dll)
+          // 2. GAMEMODE BUTTONS (gm_crystal, gm_sword, gm_spearmace, etc.)
           if (customId.startsWith('gm_')) {
             const modeKey = customId.split('_')[1];
 
-            const mode = waitlistService.getMode(modeKey);
-            if (!mode) {
-              return await interaction.reply({ content: '❌ Invalid Game Mode selected!', ephemeral: true });
-            }
-
-            if (mode.messageId) {
+            // Check if user has verified their IGN & Region
+            const stats = waitlistService ? waitlistService.getPlayerStats(interaction.user.id) : null;
+            if (!stats) {
               return await interaction.reply({ 
-                content: `✅ The **${mode.name}** waitlist queue is already active in this channel!`, 
+                content: '❌ You must click the **Verify / Change** button first to register your IGN & Region!', 
                 ephemeral: true 
               });
             }
 
-            await interaction.deferReply({ ephemeral: true });
-
-            try {
-              const message = await WaitlistUpdater.createMessage(interaction.channel, modeKey, waitlistService);
-              waitlistService.setMessageId(modeKey, message.id);
-
-              return await interaction.editReply({ 
-                content: `✅ Spawned the **${mode.name}** waitlist panel below!` 
+            const targetWaitlistRole = WAITLIST_ROLES[modeKey];
+            if (!targetWaitlistRole || !/^\d+$/.test(targetWaitlistRole)) {
+              return await interaction.reply({
+                content: `❌ The Role ID for **${modeKey.toUpperCase()}** is missing or invalid in \`WAITLIST_ROLES\`!`,
+                ephemeral: true
               });
-            } catch (err) {
-              logger.error(`Failed to spawn queue panel for ${modeKey}:`, err);
-              return await interaction.editReply({ content: '❌ Failed to spawn waitlist queue panel.' });
+            }
+
+            const member = interaction.member;
+            if (!member) {
+              return await interaction.reply({ content: '❌ Could not find member data in server.', ephemeral: true });
+            }
+
+            const hasRole = member.roles.cache.has(targetWaitlistRole);
+
+            // Toggle Role Logic: If player already has the role, remove it. If not, add it.
+            if (hasRole) {
+              try {
+                await member.roles.remove(targetWaitlistRole);
+                if (waitlistService && typeof waitlistService.removePlayer === 'function') {
+                  waitlistService.removePlayer(modeKey, interaction.user.id);
+                }
+                return await interaction.reply({
+                  content: `➖ Removed **${modeKey.toUpperCase()}** waitlist role from your profile.`,
+                  ephemeral: true
+                });
+              } catch (err) {
+                logger.error(`Failed to remove role ${modeKey}: ${err.message}`);
+                return await interaction.reply({
+                  content: `⚠️ Failed to remove role. Please check bot permissions and role hierarchy!`,
+                  ephemeral: true
+                });
+              }
+            } else {
+              try {
+                await member.roles.add(targetWaitlistRole);
+                if (waitlistService && typeof waitlistService.addPlayer === 'function') {
+                  waitlistService.addPlayer(modeKey, interaction.user);
+                }
+                return await interaction.reply({
+                  content: `✅ Successfully joined the **${modeKey.toUpperCase()}** waitlist! The role has been assigned.`,
+                  ephemeral: true
+                });
+              } catch (err) {
+                logger.error(`Failed to add role ${modeKey}: ${err.message}`);
+                return await interaction.reply({
+                  content: `⚠️ Joined waitlist, but failed to assign the role. Please check bot permissions!`,
+                  ephemeral: true
+                });
+              }
             }
           }
 
-          // 3. TOMBOL DI DALAM EMBED ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
+          // 3. EMBED WAITLIST BUTTONS (waitlist_join, waitlist_leave, waitlist_toggle)
           const [action, queueModeKey] = customId.split(':');
 
-          // TOGGLE STATUS QUEUE
+          // TOGGLE QUEUE STATUS
           if (action === 'waitlist_toggle') {
-            const isTester = waitlistService.isTester(interaction.member, queueModeKey);
+            const isTester = waitlistService ? waitlistService.isTester(interaction.member, queueModeKey) : false;
             const isAdmin = interaction.member?.permissions.has(PermissionFlagsBits.Administrator);
 
             if (!isTester && !isAdmin) {
@@ -338,7 +373,6 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            // Pasangkan Waitlist Role Spesifik Gamemode
             const targetWaitlistRole = WAITLIST_ROLES[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
             if (targetWaitlistRole && /^\d+$/.test(targetWaitlistRole) && interaction.member) {
               try {
@@ -364,7 +398,6 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            // Hapus Waitlist Role Spesifik Gamemode
             const targetWaitlistRole = WAITLIST_ROLES[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
             if (targetWaitlistRole && /^\d+$/.test(targetWaitlistRole) && interaction.member) {
               try {
@@ -383,7 +416,7 @@ export default {
             return;
           }
 
-          // Fallback ke handler button umum jika ada
+          // Fallback to general button handler
           const button = client.buttons?.get(action);
           if (button) {
             try {
@@ -396,7 +429,7 @@ export default {
             }
           }
 
-        // --- HANDLER MODAL SUBMIT ---
+        // --- MODAL SUBMIT HANDLER ---
         } else if (interaction.isModalSubmit()) {
           const customId = interaction.customId;
 
@@ -410,7 +443,7 @@ export default {
 
               let nicknameUpdated = true;
 
-              // 1. Ubah Nickname Discord Player
+              // 1. Update Discord Nickname
               try {
                 if (interaction.guild && interaction.member) {
                   await interaction.member.setNickname(`${ign} [${region}]`);
@@ -420,7 +453,7 @@ export default {
                 logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
               }
 
-              // 2. Tambahkan Role Region & Account Type
+              // 2. Add Region & Account Type Roles
               if (interaction.guild && interaction.member) {
                 const allRegionRoleIds = Object.values(REGION_ROLES);
                 const allTypeRoleIds = Object.values(TYPE_ROLES);
@@ -456,7 +489,7 @@ export default {
                 }
               }
 
-              // 3. Simpan Data Player ke Cache Service
+              // 3. Store Player Stats in Waitlist Cache
               if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
                 waitlistService.setPlayerStats(interaction.user.id, { 
                   ign, 
@@ -475,7 +508,7 @@ export default {
                   `**Region:** \`${region}\`\n` +
                   `**Type:** \`${type}\`\n\n` +
                   (nicknameUpdated ? '' : `⚠️ *Note: Could not update nickname due to Discord role hierarchy.* \n\n`) +
-                  `You can now select a Gamemode from the panel and click **Join Queue**!`
+                  `You can now select any gamemode button above to toggle your waitlist role!`
                 );
 
               return await interaction.editReply({
