@@ -215,8 +215,6 @@ export default {
             }
 
             await interaction.deferUpdate().catch(() => {});
-            
-            // OPER INTERACTION.USER.ID AGAR BOT TAHU SIAPA TESTER YANG MEMBUKA QUEUE
             waitlistService.toggleOpen(modeKey, interaction.user.id);
 
             try {
@@ -234,6 +232,14 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
+            // [FIX] Tambahkan Waitlist Role
+            const waitlistRoleId = waitlistService.getWaitlistRole(modeKey);
+            if (waitlistRoleId && interaction.member) {
+              await interaction.member.roles.add(waitlistRoleId).catch(err => 
+                logger.error(`Failed adding waitlist role: ${err.message}`)
+              );
+            }
+
             await interaction.deferUpdate().catch(() => {});
             try {
               await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, modeKey, waitlistService);
@@ -248,6 +254,14 @@ export default {
             const result = waitlistService.removePlayer(modeKey, interaction.user.id);
             if (!result.success) {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
+            }
+
+            // [FIX] Lepas Waitlist Role
+            const waitlistRoleId = waitlistService.getWaitlistRole(modeKey);
+            if (waitlistRoleId && interaction.member) {
+              await interaction.member.roles.remove(waitlistRoleId).catch(err => 
+                logger.error(`Failed removing waitlist role: ${err.message}`)
+              );
             }
 
             await interaction.deferUpdate().catch(() => {});
@@ -317,18 +331,30 @@ export default {
             const region = interaction.fields.getTextInputValue('verify_region');
             const type = interaction.fields.getTextInputValue('verify_type');
 
+            // 1. Set Nickname
             try {
               await interaction.member.setNickname(`${ign} [${region.toUpperCase()}]`);
             } catch (err) {
-              // Nickname update failed (hierarchy or permissions)
+              logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
             }
 
+            // 2. [FIX] Simpan Player Stats
             const targetMode = modeKey || 'mace';
+            waitlistService.setPlayerStats(interaction.user.id, { ign, region: region.toUpperCase(), type });
+
+            // 3. Masukkan ke Waitlist
             const result = waitlistService.addPlayer(targetMode, interaction.user);
 
             let statusMessage = '';
             if (result.success) {
-              statusMessage = 'You have been automatically added to the waitlist queue!';
+              statusMessage = 'You have been verified and added to the waitlist queue!';
+
+              // [FIX] Pasang Role Waitlist jika ada
+              const waitlistRoleId = waitlistService.getWaitlistRole(targetMode);
+              if (waitlistRoleId && interaction.member) {
+                await interaction.member.roles.add(waitlistRoleId).catch(() => {});
+              }
+
               if (interaction.message?.id) {
                 await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, targetMode, waitlistService).catch(() => {});
               }
