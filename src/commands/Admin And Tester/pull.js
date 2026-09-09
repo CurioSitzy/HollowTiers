@@ -18,7 +18,7 @@ export default {
         }
 
         return interaction.reply({
-            content: `✅ <@${nextPlayer.id}> (${nextPlayer.username}) telah ditarik dari waitlist!`,
+            content: `✅ <@${nextPlayer.id}> (${nextPlayer.username}) has been pulled from the waitlist!`,
             ephemeral: false
         });
     }
