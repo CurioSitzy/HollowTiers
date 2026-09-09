@@ -16,11 +16,12 @@ export default {
           { name: 'Sword Tier', value: 'sword' },
           { name: 'Axe Tier', value: 'axe' },
           { name: 'Crystal Tier', value: 'crystal' },
-          { name: 'Diapot Tier', value: 'diapot' },
+          { name: 'Dia Pot Tier', value: 'diapot' },
           { name: 'UHC Tier', value: 'uhc' },
-          { name: 'SMP Tier', value: 'smp' }
-          { name: 'Cart Tier', value: 'cart' }
-          { name: 'Spear Mace Tier', value: 'spear' }
+          { name: 'SMP Tier', value: 'smp' },
+          { name: 'Dia SMP Tier', value: 'diasmp' },
+          { name: 'Cart Tier', value: 'cart' },
+          { name: 'Spear Mace Tier', value: 'spearmace' }
         )
     )
     .addRoleOption(option =>
