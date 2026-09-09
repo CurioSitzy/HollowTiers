@@ -1,47 +1,68 @@
 export class WaitlistService {
-    constructor() {
-        this.queue = [];
-        this.activeTickets = new Map(); // Stores active ticket channel data
+  constructor() {
+    this.isOpen = false;
+    this.queue = [];
+    this.requiredRoleId = null;
+  }
+
+  // --- GETTER & SETTER STATUS QUEUE ---
+  setOpen(status) {
+    this.isOpen = Boolean(status);
+  }
+
+  toggleOpen() {
+    this.isOpen = !this.isOpen;
+    return this.isOpen;
+  }
+
+  // --- GETTER & SETTER REQUIRED ROLE ---
+  setRequiredRoleId(roleId) {
+    this.requiredRoleId = roleId;
+  }
+
+  getRequiredRoleId() {
+    return this.requiredRoleId;
+  }
+
+  // --- MANAJEMEN PLAYER ---
+  getQueue() {
+    return this.queue;
+  }
+
+  addPlayer(user) {
+    if (!this.isOpen) {
+      return { success: false, reason: 'The queue is currently closed.' };
     }
 
-    addPlayer(user) {
-        if (this.queue.some(p => p.id === user.id)) {
-            return { success: false, reason: 'You are already in the waitlist.' };
-        }
-
-        this.queue.push({
-            id: user.id,
-            username: user.username,
-            joinedAt: new Date()
-        });
-
-        return { success: true, position: this.queue.length };
+    const exists = this.queue.some(player => player.id === user.id);
+    if (exists) {
+      return { success: false, reason: 'You are already in the queue.' };
     }
 
-    pullNextPlayer() {
-        if (this.queue.length === 0) return null;
-        return this.queue.shift();
+    const playerData = {
+      id: user.id,
+      username: user.username,
+      tag: user.tag || user.username,
+      joinedAt: new Date()
+    };
+
+    this.queue.push(playerData);
+    return { success: true, player: playerData };
+  }
+
+  removePlayer(userId) {
+    const index = this.queue.findIndex(player => player.id === userId);
+    if (index === -1) {
+      return { success: false, reason: 'You are not in the queue.' };
     }
 
-    registerTicket(channelId, playerData, testerId) {
-        this.activeTickets.set(channelId, {
-            player: playerData,
-            testerId: testerId,
-            createdAt: new Date()
-        });
-    }
+    const removed = this.queue.splice(index, 1)[0];
+    return { success: true, player: removed };
+  }
 
-    getTicket(channelId) {
-        return this.activeTickets.get(channelId);
-    }
-
-    removeTicket(channelId) {
-        return this.activeTickets.delete(channelId);
-    }
-
-    getQueue() {
-        return this.queue;
-    }
+  clearQueue() {
+    this.queue = [];
+  }
 }
 
 export const waitlistService = new WaitlistService();
