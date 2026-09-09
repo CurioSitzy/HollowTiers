@@ -268,64 +268,55 @@ export default {
 
           // 2. TOMBOL GAMEMODE (gm_crystal, gm_sword, gm_spearmace, dll)
           if (customId.startsWith('gm_')) {
-            // Langsung kirim deferReply agar Discord tidak timeout (menghindari 'didn't respond in time')
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
-            const modeKey = customId.split('_')[1];
+            try {
+              const modeKey = customId.split('_')[1];
 
-            // Cek apakah user sudah memverifikasi IGN & Region
-            const stats = waitlistService ? waitlistService.getPlayerStats(interaction.user.id) : null;
-            if (!stats) {
-              return await interaction.editReply({ 
-                content: '❌ You must click the **Verify / Change** button first to register your IGN & Region!'
-              });
-            }
+              // Cek apakah user sudah memverifikasi IGN & Region
+              const stats = waitlistService ? waitlistService.getPlayerStats(interaction.user.id) : null;
+              if (!stats) {
+                return await interaction.editReply({ 
+                  content: '❌ You must click the **Verify / Change** button first to register your IGN & Region!'
+                });
+              }
 
-            const targetWaitlistRole = WAITLIST_ROLES[modeKey];
-            if (!targetWaitlistRole || !/^\d+$/.test(targetWaitlistRole)) {
-              return await interaction.editReply({
-                content: `❌ The Role ID for **${modeKey.toUpperCase()}** is missing or invalid in \`WAITLIST_ROLES\`!`
-              });
-            }
+              const targetWaitlistRole = WAITLIST_ROLES[modeKey];
+              if (!targetWaitlistRole || !/^\d+$/.test(targetWaitlistRole)) {
+                return await interaction.editReply({
+                  content: `❌ The Role ID for **${modeKey.toUpperCase()}** is missing or invalid in \`WAITLIST_ROLES\`!`
+                });
+              }
 
-            const member = interaction.member;
-            if (!member) {
-              return await interaction.editReply({ content: '❌ Could not find member data in server.' });
-            }
+              const member = interaction.member;
+              if (!member) {
+                return await interaction.editReply({ content: '❌ Could not find member data in server.' });
+              }
 
-            const hasRole = member.roles.cache.has(targetWaitlistRole);
+              const hasRole = member.roles.cache.has(targetWaitlistRole);
 
-            // Logika Toggle Role: Jika player sudah punya role maka dicopot, jika belum maka ditambahkan
-            if (hasRole) {
-              try {
+              if (hasRole) {
                 await member.roles.remove(targetWaitlistRole);
                 if (waitlistService && typeof waitlistService.removePlayer === 'function') {
-                  waitlistService.removePlayer(modeKey, interaction.user.id);
+                  try { waitlistService.removePlayer(modeKey, interaction.user.id); } catch (e) { logger.error(e); }
                 }
                 return await interaction.editReply({
                   content: `➖ Removed **${modeKey.toUpperCase()}** waitlist role from your profile.`
                 });
-              } catch (err) {
-                logger.error(`Failed to remove role ${modeKey}: ${err.message}`);
-                return await interaction.editReply({
-                  content: `⚠️ Failed to remove role. Please check bot permissions and role hierarchy!`
-                });
-              }
-            } else {
-              try {
+              } else {
                 await member.roles.add(targetWaitlistRole);
                 if (waitlistService && typeof waitlistService.addPlayer === 'function') {
-                  waitlistService.addPlayer(modeKey, interaction.user);
+                  try { waitlistService.addPlayer(modeKey, interaction.user); } catch (e) { logger.error(e); }
                 }
                 return await interaction.editReply({
                   content: `✅ Successfully joined the **${modeKey.toUpperCase()}** waitlist! The role has been assigned.`
                 });
-              } catch (err) {
-                logger.error(`Failed to add role ${modeKey}: ${err.message}`);
-                return await interaction.editReply({
-                  content: `⚠️ Joined waitlist, but failed to assign the role. Please check bot permissions!`
-                });
               }
+            } catch (err) {
+              logger.error(`Error in gamemode button handler: ${err.stack || err.message}`);
+              return await interaction.editReply({
+                content: `⚠️ An error occurred while updating your role: \`${err.message}\`. Make sure the bot's highest role is HIGHER than the waitlist roles in Server Settings!`
+              });
             }
           }
 
