@@ -1,81 +1,82 @@
 export class WaitlistService {
   constructor() {
-    this.gamemodes = {
-      mace: { name: 'Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      sword: { name: 'Sword', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      axe: { name: 'Axe', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      crystal: { name: 'Crystal', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      diapot: { name: 'Dia Pot', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      uhc: { name: 'UHC', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      smp: { name: 'SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      diasmp: { name: 'Dia SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      cart: { name: 'Cart', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null },
-      spearmace: { name: 'Spear Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '-', openedBy: null, messageId: null }
+    // Definisi mode queue bawaan (termasuk spearmace & cart)
+    this.modes = new Map([
+      ['mace', { name: 'Mace', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['sword', { name: 'Sword', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['crystal', { name: 'Crystal', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['axe', { name: 'Axe', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['pot', { name: 'Pot', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['uhc', { name: 'UHC', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['smp', { name: 'SMP', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['spearmace', { name: 'Spearmace', isOpen: false, queue: [], openedBy: null, lastSession: null }],
+      ['cart', { name: 'Cart', isOpen: false, queue: [], openedBy: null, lastSession: null }]
+    ]);
+
+    // Role Tester yang diizinkan untuk setiap mode (Ganti ID Role sesuai server kamu)
+    this.testerRoles = {
+      mace: ['1546163052909428796'],
+      sword: ['1546352203739045888'],
+      crystal: ['1546352188757119107'],
+      axe: ['1546352170721607710'],
+      pot: ['1546349242245971998'],
+      uhc: ['1546349340778438687'],
+      smp: ['1546352269333635152'],
+      spearmace: ['1546349379709833296'],
+      cart: ['1546349356020666439']
     };
   }
 
   getMode(modeKey) {
-    if (!modeKey) return null;
-    return this.gamemodes[modeKey.toLowerCase()] || null;
-  }
-
-  setTesterRole(modeKey, roleId) {
-    const mode = this.getMode(modeKey);
-    if (mode) mode.testerRoleId = roleId;
-  }
-
-  setMessageId(modeKey, messageId) {
-    const mode = this.getMode(modeKey);
-    if (mode) mode.messageId = messageId;
+    return this.modes.get(modeKey?.toLowerCase());
   }
 
   isTester(member, modeKey) {
-    const mode = this.getMode(modeKey);
-    if (!mode || !mode.testerRoleId) return false;
-    return member.roles.cache.has(mode.testerRoleId);
+    if (!member || !modeKey) return false;
+    const allowedRoles = this.testerRoles[modeKey.toLowerCase()] || [];
+    return member.roles.cache.some(role => allowedRoles.includes(role.id));
   }
 
-  toggleOpen(modeKey, user) {
+  toggleOpen(modeKey, userId) {
     const mode = this.getMode(modeKey);
     if (!mode) return false;
 
     mode.isOpen = !mode.isOpen;
+
     if (mode.isOpen) {
-      // Otomatis mengambil tanggal, bulan, dan tahun saat queue dibuka
       const now = new Date();
       mode.lastSession = now.toLocaleDateString('en-GB', { 
         day: '2-digit', 
         month: 'short', 
         year: 'numeric' 
-      }); // Contoh hasil: "09 Sept 2026"
-      mode.openedBy = user ? user.id : null;
+      });
+      // Menyimpan ID tester yang menekan tombol
+      mode.openedBy = userId;
     } else {
       mode.openedBy = null;
     }
+
     return mode.isOpen;
   }
 
   addPlayer(modeKey, user) {
     const mode = this.getMode(modeKey);
-    if (!mode) return { success: false, reason: 'Invalid gamemode.' };
-    if (!mode.isOpen) return { success: false, reason: `Queue for ${mode.name} is currently closed.` };
+    if (!mode) return { success: false, reason: 'Invalid game mode.' };
+    if (!mode.isOpen) return { success: false, reason: 'This queue is currently closed.' };
 
-    if (mode.queue.some(p => p.id === user.id)) {
-      return { success: false, reason: `You are already in the ${mode.name} queue.` };
-    }
+    const exists = mode.queue.some(p => p.id === user.id);
+    if (exists) return { success: false, reason: 'You are already in this queue!' };
 
-    mode.queue.push({ id: user.id, username: user.username, joinedAt: new Date() });
+    mode.queue.push({ id: user.id, username: user.username, joinedAt: Date.now() });
     return { success: true };
   }
 
   removePlayer(modeKey, userId) {
     const mode = this.getMode(modeKey);
-    if (!mode) return { success: false, reason: 'Invalid gamemode.' };
+    if (!mode) return { success: false, reason: 'Invalid game mode.' };
 
     const index = mode.queue.findIndex(p => p.id === userId);
-    if (index === -1) {
-      return { success: false, reason: `You are not in the ${mode.name} queue.` };
-    }
+    if (index === -1) return { success: false, reason: 'You are not in this queue.' };
 
     mode.queue.splice(index, 1);
     return { success: true };
