@@ -16,7 +16,6 @@ import {
   isMaintenanceMode,
 } from '../config/bot.js';
 import botConfig from '../config/bot.js';
-import { handleApplicationModal } from '../commands/Community/apply.js';
 import { handleInteractionError, createError, ErrorTypes, ErrorCodes } from '../utils/errorHandler.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 import { createInteractionTraceContext, runWithTraceContext } from '../utils/logger.js';
@@ -24,7 +23,6 @@ import { validateChatInputPayloadOrThrow } from '../utils/commandInputValidation
 import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abuseProtection.js';
 import { isCommandEnabled } from '../services/commandAccessService.js';
 import { resolveSlashAccessKey } from '../utils/messageAdapter.js';
-import { isCollectorManagedComponent } from '../utils/collectorComponents.js';
 import { ResponseCoordinator } from '../utils/responseCoordinator.js';
 import { enforceDefaultCommandPermissions } from '../utils/permissionGuard.js';
 
@@ -247,7 +245,6 @@ export default {
               return await interaction.reply({ content: '❌ Invalid Game Mode selected!', ephemeral: true });
             }
 
-            // Cek apakah embed antrean gamemode ini sudah aktif
             if (mode.messageId) {
               return await interaction.reply({ 
                 content: `✅ The **${mode.name}** waitlist queue is already active in this channel!`, 
@@ -273,7 +270,7 @@ export default {
           // 3. TOMBOL DI DALAM EMBED ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
           const [action, queueModeKey] = customId.split(':');
 
-          // TOGGLE STATUS QUEUE (OPEN / CLOSE)
+          // TOGGLE STATUS QUEUE
           if (action === 'waitlist_toggle') {
             const isTester = waitlistService.isTester(interaction.member, queueModeKey);
             const isAdmin = interaction.member?.permissions.has(PermissionFlagsBits.Administrator);
@@ -298,7 +295,6 @@ export default {
 
           // JOIN QUEUE
           if (action === 'waitlist_join') {
-            // Verifikasi: Harus sudah isi modal verify dulu
             const stats = waitlistService.getPlayerStats(interaction.user.id);
             if (!stats) {
               return await interaction.reply({ 
@@ -312,12 +308,14 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            // Auto assign waitlist role
+            // Assign Waitlist Role
             const waitlistRoleId = waitlistService.getWaitlistRole(queueModeKey);
             if (waitlistRoleId && interaction.member) {
-              await interaction.member.roles.add(waitlistRoleId).catch((err) => 
-                logger.error(`Failed to assign waitlist role: ${err.message}`)
-              );
+              try {
+                await interaction.member.roles.add(waitlistRoleId);
+              } catch (err) {
+                logger.error(`Failed to assign waitlist role: ${err.message}`);
+              }
             }
 
             await interaction.deferUpdate().catch(() => {});
@@ -336,12 +334,14 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            // Auto remove waitlist role
+            // Remove Waitlist Role
             const waitlistRoleId = waitlistService.getWaitlistRole(queueModeKey);
             if (waitlistRoleId && interaction.member) {
-              await interaction.member.roles.remove(waitlistRoleId).catch((err) => 
-                logger.error(`Failed to remove waitlist role: ${err.message}`)
-              );
+              try {
+                await interaction.member.roles.remove(waitlistRoleId);
+              } catch (err) {
+                logger.error(`Failed to remove waitlist role: ${err.message}`);
+              }
             }
 
             await interaction.deferUpdate().catch(() => {});
@@ -368,17 +368,22 @@ export default {
 
         // --- HANDLER MODAL SUBMIT ---
         } else if (interaction.isModalSubmit()) {
-          const [modalAction, modeKey] = interaction.customId.split(':');
+          const [modalAction] = interaction.customId.split(':');
 
           if (modalAction === 'modal_verify_form') {
             const ign = interaction.fields.getTextInputValue('verify_ign');
             const region = interaction.fields.getTextInputValue('verify_region');
             const type = interaction.fields.getTextInputValue('verify_type');
 
-            // 1. Ubah Nickname Discord Player
+            let nicknameUpdated = true;
+
+            // 1. Ubah Nickname Discord Player (Aman dari crash jika role bot dibawah user / user = owner)
             try {
-              await interaction.member.setNickname(`${ign} [${region.toUpperCase()}]`);
+              if (interaction.guild && interaction.member) {
+                await interaction.member.setNickname(`${ign} [${region.toUpperCase()}]`);
+              }
             } catch (err) {
+              nicknameUpdated = false;
               logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
             }
 
@@ -396,6 +401,7 @@ export default {
                 `**IGN:** \`${ign}\`\n` +
                 `**Region:** \`${region.toUpperCase()}\`\n` +
                 `**Type:** \`${type}\`\n\n` +
+                (nicknameUpdated ? '' : `⚠️ *Note: Could not update nickname due to Discord role hierarchy.* \n\n`) +
                 `You can now select a Gamemode from the panel and click **Join Queue**!`
               );
 
@@ -409,7 +415,7 @@ export default {
         logger.error('Unhandled error in interactionCreate:', {
           event: 'interaction.unhandled_error',
           errorCode: ErrorCodes.INTERACTION_UNHANDLED,
-          error,
+          error: error.message || error,
           traceId: interactionTraceContext.traceId
         });
       }
