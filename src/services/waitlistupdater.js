@@ -5,18 +5,17 @@ export class WaitlistUpdater {
     const mode = service.getMode(modeKey);
     if (!mode) return { embed: null, components: [] };
 
+    // Format daftar antrean
     const queueList = mode.queue.length > 0 
       ? mode.queue.map((p, i) => `${i + 1}. <@${p.id}>`).join('\n')
       : '*Queue is currently empty*';
 
-    // Menyiapkan teks tag tester jika status queue sedang dibuka
-    const testerMention = (mode.isOpen && mode.openedBy) 
-      ? `<@${mode.openedBy}>` 
-      : null;
+    // Format tag tester
+    const testerTag = mode.openedBy ? `<@${mode.openedBy}>` : '*Unknown Tester*';
 
-    // Menggabungkan teks deskripsi
+    // Deskripsi Embed tergantung status queue
     const descriptionText = mode.isOpen
-      ? `Testers for **${mode.name}** are online!${testerMention ? `\n**Tester:** ${testerMention}` : ''}\n\nClick **Join Queue** to apply for testing.`
+      ? `Testers for **${mode.name}** are online!\n**Tester:** ${testerTag}\n\nClick **Join Queue** to apply for testing.`
       : 'No testers for your region are available at this time.\nYou will be pinged when a tester is available. Check back later!';
 
     const embed = new EmbedBuilder()
@@ -36,6 +35,7 @@ export class WaitlistUpdater {
         }
       );
 
+    // Tombol-tombol interaksi
     const joinBtn = new ButtonBuilder()
       .setCustomId(`waitlist_join:${modeKey}`)
       .setLabel('Join Queue')
