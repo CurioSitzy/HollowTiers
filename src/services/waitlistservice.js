@@ -1,63 +1,76 @@
 export class WaitlistService {
   constructor() {
-    this.isOpen = false;
-    this.queue = [];
-    this.lastSessionDate = '08 Sept 2026';
-    this.requiredRoleId = null;
-    this.messageId = null;
+    this.gamemodes = {
+      mace: { name: 'Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      sword: { name: 'Sword', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      axe: { name: 'Axe', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      crystal: { name: 'Crystal', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      diapot: { name: 'Dia Pot', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      uhc: { name: 'UHC', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      smp: { name: 'SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      diasmp: { name: 'Dia SMP', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      cart: { name: 'Cart', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null },
+      spearmace: { name: 'Spear Mace', testerRoleId: null, isOpen: false, queue: [], lastSession: '08 Sept 2026', messageId: null }
+    };
   }
 
-  setMessageId(id) {
-    this.messageId = id;
+  getMode(modeKey) {
+    if (!modeKey) return null;
+    return this.gamemodes[modeKey.toLowerCase()] || null;
   }
 
-  toggleOpen() {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) {
+  setTesterRole(modeKey, roleId) {
+    const mode = this.getMode(modeKey);
+    if (mode) mode.testerRoleId = roleId;
+  }
+
+  setMessageId(modeKey, messageId) {
+    const mode = this.getMode(modeKey);
+    if (mode) mode.messageId = messageId;
+  }
+
+  isTester(member, modeKey) {
+    const mode = this.getMode(modeKey);
+    if (!mode || !mode.testerRoleId) return false;
+    return member.roles.cache.has(mode.testerRoleId);
+  }
+
+  toggleOpen(modeKey) {
+    const mode = this.getMode(modeKey);
+    if (!mode) return false;
+
+    mode.isOpen = !mode.isOpen;
+    if (mode.isOpen) {
       const now = new Date();
-      const options = { day: '2-digit', month: 'short', year: 'numeric' };
-      this.lastSessionDate = now.toLocaleDateString('en-GB', options);
+      mode.lastSession = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     }
-    return this.isOpen;
+    return mode.isOpen;
   }
 
-  setOpen(status) {
-    this.isOpen = Boolean(status);
-  }
+  addPlayer(modeKey, user) {
+    const mode = this.getMode(modeKey);
+    if (!mode) return { success: false, reason: 'Invalid gamemode.' };
+    if (!mode.isOpen) return { success: false, reason: `Queue for ${mode.name} is currently closed.` };
 
-  getQueue() {
-    return this.queue;
-  }
-
-  addPlayer(user) {
-    if (!this.isOpen) {
-      return { success: false, reason: 'The queue is currently closed.' };
+    if (mode.queue.some(p => p.id === user.id)) {
+      return { success: false, reason: `You are already in the ${mode.name} queue.` };
     }
 
-    if (this.queue.some(p => p.id === user.id)) {
-      return { success: false, reason: 'You are already in the queue.' };
-    }
-
-    this.queue.push({ id: user.id, username: user.username, joinedAt: new Date() });
+    mode.queue.push({ id: user.id, username: user.username, joinedAt: new Date() });
     return { success: true };
   }
 
-  removePlayer(userId) {
-    const index = this.queue.findIndex(p => p.id === userId);
+  removePlayer(modeKey, userId) {
+    const mode = this.getMode(modeKey);
+    if (!mode) return { success: false, reason: 'Invalid gamemode.' };
+
+    const index = mode.queue.findIndex(p => p.id === userId);
     if (index === -1) {
-      return { success: false, reason: 'You are not in the queue.' };
+      return { success: false, reason: `You are not in the ${mode.name} queue.` };
     }
 
-    this.queue.splice(index, 1);
+    mode.queue.splice(index, 1);
     return { success: true };
-  }
-
-  getRequiredRoleId() {
-    return this.requiredRoleId;
-  }
-
-  setRequiredRoleId(roleId) {
-    this.requiredRoleId = roleId;
   }
 }
 
