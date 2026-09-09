@@ -1,5 +1,8 @@
 export class WaitlistService {
   constructor() {
+    // Penyimpanan data verifikasi pemain (IGN, Region, Type)
+    this.playerData = new Map();
+
     // Inisialisasi daftar gamemode beserta propertinya
     this.modes = new Map([
       ['mace', { name: 'Mace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
@@ -14,6 +17,16 @@ export class WaitlistService {
       ['spearmace', { name: 'Spearmace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
       ['cart', { name: 'Cart', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }]
     ]);
+  }
+
+  // Simpan data verifikasi pemain
+  setPlayerStats(userId, data) {
+    this.playerData.set(userId, data);
+  }
+
+  // Ambil data verifikasi pemain
+  getPlayerStats(userId) {
+    return this.playerData.get(userId) || null;
   }
 
   // Mengambil data mode berdasarkan kunci (misal: 'mace', 'spearmace')
