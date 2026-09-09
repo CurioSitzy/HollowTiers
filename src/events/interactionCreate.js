@@ -273,8 +273,16 @@ export default {
             try {
               const modeKey = customId.split('_')[1];
 
-              // Cek apakah user sudah memverifikasi IGN & Region
-              const stats = waitlistService ? waitlistService.getPlayerStats(interaction.user.id) : null;
+              // Safe check getPlayerStats
+              let stats = null;
+              if (waitlistService) {
+                if (typeof waitlistService.getPlayerStats === 'function') {
+                  stats = waitlistService.getPlayerStats(interaction.user.id);
+                } else if (typeof waitlistService.getStats === 'function') {
+                  stats = waitlistService.getStats(interaction.user.id);
+                }
+              }
+
               if (!stats) {
                 return await interaction.editReply({ 
                   content: '❌ You must click the **Verify / Change** button first to register your IGN & Region!'
@@ -348,7 +356,11 @@ export default {
 
           // JOIN QUEUE
           if (action === 'waitlist_join') {
-            const stats = waitlistService.getPlayerStats(interaction.user.id);
+            let stats = null;
+            if (waitlistService && typeof waitlistService.getPlayerStats === 'function') {
+              stats = waitlistService.getPlayerStats(interaction.user.id);
+            }
+
             if (!stats) {
               return await interaction.reply({ 
                 content: '❌ You must click the **Verify / Change** button on the setup panel first to register your IGN & Region!', 
@@ -484,8 +496,6 @@ export default {
                   region, 
                   type 
                 });
-              } else {
-                logger.error('waitlistService.setPlayerStats is not defined or not a function!');
               }
 
               const successEmbed = new EmbedBuilder()
