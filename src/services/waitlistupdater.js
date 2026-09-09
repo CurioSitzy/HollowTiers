@@ -9,13 +9,17 @@ export class WaitlistUpdater {
       ? mode.queue.map((p, i) => `${i + 1}. <@${p.id}>`).join('\n')
       : '*Queue is currently empty*';
 
+    const testerText = mode.isOpen && mode.openedBy 
+      ? `\n**Tester:** <@${mode.openedBy}>` 
+      : '';
+
     const embed = new EmbedBuilder()
       .setColor(mode.isOpen ? 0x57F287 : 0xED4245)
       .addFields(
         {
           name: mode.isOpen ? `${mode.name} Testers Online` : 'No Testers Online',
           value: mode.isOpen 
-            ? `Testers for **${mode.name}** are online!\nClick **Join Queue** to apply for testing.`
+            ? `Testers for **${mode.name}** are online!${testerText}\nClick **Join Queue** to apply for testing.`
             : 'No testers for your region are available at this time.\nYou will be pinged when a tester is available. Check back later!'
         },
         {
@@ -24,7 +28,7 @@ export class WaitlistUpdater {
         },
         {
           name: 'Last Testing Session',
-          value: mode.lastSession
+          value: mode.lastSession || '-'
         }
       );
 
