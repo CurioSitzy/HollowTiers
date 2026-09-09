@@ -16,9 +16,11 @@ export default {
           { name: 'Sword Tier', value: 'sword' },
           { name: 'Axe Tier', value: 'axe' },
           { name: 'Crystal Tier', value: 'crystal' },
-          { name: 'Potion Tier', value: 'potion' },
+          { name: 'Diapot Tier', value: 'diapot' },
           { name: 'UHC Tier', value: 'uhc' },
           { name: 'SMP Tier', value: 'smp' }
+          { name: 'Cart Tier', value: 'cart' }
+          { name: 'Spear Mace Tier', value: 'spear' }
         )
     )
     .addRoleOption(option =>
