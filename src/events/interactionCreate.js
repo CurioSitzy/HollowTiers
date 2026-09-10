@@ -7,7 +7,7 @@ import {
   EmbedBuilder,
   PermissionFlagsBits
 } from 'discord.js';
-import { logger } from '../utils/logger.js';
+import { logger, createInteractionTraceContext, runWithTraceContext } from '../utils/logger.js';
 import { getGuildConfig } from '../services/config/guildConfig.js';
 import {
   getBotMessage,
@@ -18,7 +18,6 @@ import {
 import botConfig from '../config/bot.js';
 import { handleInteractionError, createError, ErrorTypes, ErrorCodes } from '../utils/errorHandler.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
-import { createInteractionTraceContext, runWithTraceContext } from '../utils/logger.js';
 import { validateChatInputPayloadOrThrow } from '../utils/commandInputValidation.js';
 import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abuseProtection.js';
 import { isCommandEnabled } from '../services/commandAccessService.js';
@@ -30,53 +29,48 @@ import { waitlistService } from '../services/waitlistservice.js';
 import { WaitlistUpdater } from '../services/waitlistupdater.js';
 
 // ==========================================
-// ROLE ID CONFIGURATION
+// CENTRAL ROLE CONFIGURATION
 // ==========================================
-const REGION_ROLES = {
-  AS: '1500479159456235533',
-  EU: '1500479159456235535',
-  NA: '1500479159456235534',
-  AU: '1500479159456235532',
-  SA: '1547158919649165413',
+const ROLES = {
+  REGION: {
+    AS: '1500479159456235533',
+    EU: '1500479159456235535',
+    NA: '1500479159456235534',
+    AU: '1500479159456235532',
+    SA: '1547158919649165413',
+  },
+  TYPE: {
+    PREMIUM: '1546348570293051444',
+    CRACKED: '1546348575406166106',
+  },
+  WAITLIST: {
+    crystal: '1546415409618485328',
+    sword: '1546413861387898903',
+    mace: '1546412993758236832',
+    axe: '1546413949552164884',
+    uhc: '1546413321228656720',
+    pot: '1546414095819997215',
+    nethop: '1546413523716931694',
+    smp: '1546413431089791027',
+    cart: '1546413989196472373',
+    diasmp: '1546413278195093545',
+    spearmace: '1546413406918152223',
+  },
+  TESTER: {
+    crystal: '1546352188757119107',
+    sword: '1546352203739045888',
+    mace: '1546163052909428796',
+    axe: '1546352170721607710',
+    uhc: '1546349340778438687',
+    pot: '1546349242245971998',
+    nethop: '1546349287720488970',
+    smp: '1546352269333635152',
+    cart: '1546349356020666439',
+    diasmp: '1546352284135334019',
+    spearmace: '1546349379709833296',
+  },
+  VERIFIED_TESTER: '1500479159485595722'
 };
-
-const TYPE_ROLES = {
-  PREMIUM: '1546348570293051444',
-  CRACKED: '1546348575406166106',
-};
-
-// Waitlist Role IDs per Gamemode
-const WAITLIST_ROLES = {
-  crystal: '1546415409618485328',
-  sword: '1546413861387898903',
-  mace: '1546412993758236832',
-  axe: '1546413949552164884',
-  uhc: '1546413321228656720',
-  pot: '1546414095819997215',
-  nethop: '1546413523716931694',
-  smp: '1546413431089791027',
-  cart: '1546413989196472373',
-  diasmp: '1546413278195093545',
-  spearmace: '1546413406918152223',
-};
-
-// Tester Role IDs per Gamemode
-const TESTER_ROLES = {
-  crystal: '1546352188757119107',
-  sword: '1546352203739045888',
-  mace: '1546163052909428796',
-  axe: '1546352170721607710',
-  uhc: '1546349340778438687',
-  pot: '1546349242245971998',
-  nethop: '1546349287720488970',
-  smp: '1546352269333635152',
-  cart: '1546349356020666439',
-  diasmp: '1546352284135334019',
-  spearmace: '1546349379709833296',
-};
-
-// Verified Tester Role ID (Replace with your actual Verified Tester role ID)
-const VERIFIED_TESTER_ROLE_ID = '1500479159485595722';
 
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
@@ -163,17 +157,15 @@ export default {
               );
             }
 
-            // ==========================================
             // TIERLIST COMMAND ACCESS PROTECTION
-            // ==========================================
             const isTierlistCmd = command.category?.toLowerCase() === 'tierlist' || interaction.commandName.toLowerCase().includes('tier');
 
             if (isTierlistCmd) {
               const member = interaction.member;
-              const allTesterRoleIds = Object.values(TESTER_ROLES);
+              const allTesterRoleIds = Object.values(ROLES.TESTER);
 
               const hasTesterRole = member?.roles?.cache?.some(role => allTesterRoleIds.includes(role.id));
-              const hasVerifiedTesterRole = member?.roles?.cache?.has(VERIFIED_TESTER_ROLE_ID);
+              const hasVerifiedTesterRole = member?.roles?.cache?.has(ROLES.VERIFIED_TESTER);
               const isAdmin = member?.permissions?.has(PermissionFlagsBits.Administrator);
 
               if (!hasTesterRole && !hasVerifiedTesterRole && !isAdmin) {
@@ -242,7 +234,6 @@ export default {
               return;
             }
 
-            // Execute command
             await command.execute(interaction, guildConfig, client, supabase);
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
@@ -280,7 +271,7 @@ export default {
         if (interaction.isButton()) {
           const customId = interaction.customId;
 
-          // A. VERIFICATION BUTTON (waitlist_verify)
+          // VERIFICATION BUTTON
           if (customId === 'waitlist_verify') {
             const modal = new ModalBuilder()
               .setCustomId('modal_verify_form:global')
@@ -298,7 +289,6 @@ export default {
               .setLabel('Region (AS / EU / NA / AU / SA)')
               .setStyle(TextInputStyle.Short)
               .setPlaceholder('e.g. AS')
-              .setStyle(TextInputStyle.Short)
               .setRequired(true);
 
             const typeInput = new TextInputBuilder()
@@ -317,7 +307,7 @@ export default {
             return await interaction.showModal(modal);
           }
 
-          // B. GAMEMODE BUTTONS (gm_crystal, gm_sword, etc.)
+          // GAMEMODE BUTTONS
           if (customId.startsWith('gm_')) {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -333,7 +323,6 @@ export default {
                 }
               }
 
-              // FALLBACK: CHECK SUPABASE IF LOCAL CACHE IS EMPTY
               if (!stats && supabase) {
                 const { data: dbPlayer } = await supabase
                   .from('players')
@@ -355,10 +344,10 @@ export default {
                 });
               }
 
-              const targetWaitlistRole = WAITLIST_ROLES[modeKey];
+              const targetWaitlistRole = ROLES.WAITLIST[modeKey];
               if (!targetWaitlistRole || !/^\d+$/.test(targetWaitlistRole)) {
                 return await interaction.editReply({
-                  content: `❌ The Role ID for **${modeKey.toUpperCase()}** is missing or invalid in \`WAITLIST_ROLES\`!`
+                  content: `❌ The Role ID for **${modeKey.toUpperCase()}** is missing or invalid in configuration!`
                 });
               }
 
@@ -394,10 +383,9 @@ export default {
             }
           }
 
-          // C. QUEUE ACTION BUTTONS (waitlist_join, waitlist_leave, waitlist_toggle)
+          // QUEUE ACTION BUTTONS
           const [action, queueModeKey] = customId.split(':');
 
-          // TOGGLE QUEUE STATUS
           if (action === 'waitlist_toggle') {
             try {
               const member = interaction.member;
@@ -409,9 +397,9 @@ export default {
                 });
               }
 
-              const specificTesterRoleId = TESTER_ROLES[queueModeKey];
+              const specificTesterRoleId = ROLES.TESTER[queueModeKey];
               const hasSpecificTesterRole = specificTesterRoleId ? member.roles.cache.has(specificTesterRoleId) : false;
-              const hasVerifiedTesterRole = member.roles.cache.has(VERIFIED_TESTER_ROLE_ID);
+              const hasVerifiedTesterRole = member.roles.cache.has(ROLES.VERIFIED_TESTER);
 
               const serviceTesterRoleId = waitlistService && typeof waitlistService.getTesterRole === 'function' 
                 ? waitlistService.getTesterRole(queueModeKey) 
@@ -449,14 +437,12 @@ export default {
             return;
           }
 
-          // JOIN QUEUE
           if (action === 'waitlist_join') {
             let stats = null;
             if (waitlistService && typeof waitlistService.getPlayerStats === 'function') {
               stats = waitlistService.getPlayerStats(interaction.user.id);
             }
 
-            // FALLBACK TO DATABASE IF LOCAL DATA IS EMPTY
             if (!stats && supabase) {
               const { data: dbPlayer } = await supabase
                 .from('players')
@@ -484,7 +470,7 @@ export default {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            const targetWaitlistRole = WAITLIST_ROLES[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
+            const targetWaitlistRole = ROLES.WAITLIST[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
             if (targetWaitlistRole && /^\d+$/.test(targetWaitlistRole) && interaction.member) {
               try {
                 await interaction.member.roles.add(targetWaitlistRole);
@@ -502,14 +488,13 @@ export default {
             return;
           }
 
-          // LEAVE QUEUE
           if (action === 'waitlist_leave') {
             const result = waitlistService.removePlayer(queueModeKey, interaction.user.id);
             if (!result.success) {
               return await interaction.reply({ content: `❌ ${result.reason}`, ephemeral: true });
             }
 
-            const targetWaitlistRole = WAITLIST_ROLES[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
+            const targetWaitlistRole = ROLES.WAITLIST[queueModeKey] || waitlistService.getWaitlistRole(queueModeKey);
             if (targetWaitlistRole && /^\d+$/.test(targetWaitlistRole) && interaction.member) {
               try {
                 await interaction.member.roles.remove(targetWaitlistRole);
@@ -527,7 +512,6 @@ export default {
             return;
           }
 
-          // Fallback to general dynamic button handlers if available
           const button = client.buttons?.get(action);
           if (button) {
             try {
@@ -568,8 +552,8 @@ export default {
               }
 
               if (interaction.guild && interaction.member) {
-                const allRegionRoleIds = Object.values(REGION_ROLES);
-                const allTypeRoleIds = Object.values(TYPE_ROLES);
+                const allRegionRoleIds = Object.values(ROLES.REGION);
+                const allTypeRoleIds = Object.values(ROLES.TYPE);
 
                 const oldRolesToRemove = interaction.member.roles.cache
                   .filter(role => allRegionRoleIds.includes(role.id) || allTypeRoleIds.includes(role.id))
@@ -582,16 +566,11 @@ export default {
                 }
 
                 const rolesToAdd = [];
+                const regionRoleId = ROLES.REGION[region];
+                if (regionRoleId) rolesToAdd.push(regionRoleId);
 
-                const regionRoleId = REGION_ROLES[region];
-                if (regionRoleId) {
-                  rolesToAdd.push(regionRoleId);
-                }
-
-                const typeRoleId = TYPE_ROLES[type];
-                if (typeRoleId) {
-                  rolesToAdd.push(typeRoleId);
-                }
+                const typeRoleId = ROLES.TYPE[type];
+                if (typeRoleId) rolesToAdd.push(typeRoleId);
 
                 if (rolesToAdd.length > 0) {
                   try {
@@ -602,16 +581,10 @@ export default {
                 }
               }
 
-              // Save verification stats locally
               if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
-                waitlistService.setPlayerStats(interaction.user.id, { 
-                  ign, 
-                  region, 
-                  type 
-                });
+                waitlistService.setPlayerStats(interaction.user.id, { ign, region, type });
               }
 
-              // PERSIST DATA TO SUPABASE DATABASE
               if (supabase) {
                 const { error: dbError } = await supabase
                   .from('players')
@@ -639,9 +612,7 @@ export default {
                   `You can now select any gamemode button above to toggle your waitlist role!`
                 );
 
-              return await interaction.editReply({
-                embeds: [successEmbed]
-              });
+              return await interaction.editReply({ embeds: [successEmbed] });
             } catch (submitErr) {
               logger.error('Error executing modal verification submit:', submitErr);
               return await interaction.editReply({
