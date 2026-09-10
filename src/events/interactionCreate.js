@@ -88,7 +88,7 @@ function withTraceContext(context = {}, traceContext = {}) {
 
 export default {
   name: Events.InteractionCreate,
-  async execute(interaction, client) {
+  async execute(interaction, client, supabase) {
     const interactionTraceContext = createInteractionTraceContext(interaction);
     interaction.traceContext = interactionTraceContext;
     interaction.traceId = interactionTraceContext.traceId;
@@ -98,7 +98,9 @@ export default {
         InteractionHelper.patchInteractionResponses(interaction);
         ResponseCoordinator.attach(interaction);
 
-        // --- HANDLER SLASH COMMANDS ---
+        // ==========================================
+        // 1. HANDLER SLASH COMMANDS
+        // ==========================================
         if (interaction.isChatInputCommand()) {
           try {
             logger.info(`Command executed: /${interaction.commandName} by ${interaction.user.tag}`, {
@@ -201,8 +203,8 @@ export default {
               return;
             }
 
-            // Meneruskan client secara utuh sebagai argumen ke-3
-            await command.execute(interaction, guildConfig, client);
+            // Eksekusi command
+            await command.execute(interaction, guildConfig, client, supabase);
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
               type: 'command',
@@ -210,13 +212,17 @@ export default {
               subtype: COMMAND_ERROR_SUBTYPES[interaction.commandName] || error?.context?.subtype,
             }, interactionTraceContext));
           }
+          return; // Menghentikan eksekusi agar tidak lanjut ke handler lain
+        }
 
-        // --- HANDLER AUTOCOMPLETE ---
-        } else if (interaction.isAutocomplete()) {
+        // ==========================================
+        // 2. HANDLER AUTOCOMPLETE
+        // ==========================================
+        if (interaction.isAutocomplete()) {
           const autocompleteCommand = client.commands.get(interaction.commandName);
           if (autocompleteCommand?.autocomplete) {
             try {
-              await autocompleteCommand.autocomplete(interaction, client);
+              await autocompleteCommand.autocomplete(interaction, client, supabase);
             } catch (error) {
               logger.error('Error handling command autocomplete:', {
                 error: error.message,
@@ -225,14 +231,17 @@ export default {
               });
               await interaction.respond([]).catch(() => {});
             }
-            return;
           }
+          return;
+        }
 
-        // --- HANDLER BUTTON ---
-        } else if (interaction.isButton()) {
+        // ==========================================
+        // 3. HANDLER BUTTON INTERACTION
+        // ==========================================
+        if (interaction.isButton()) {
           const customId = interaction.customId;
 
-          // 1. TOMBOL VERIFY (waitlist_verify)
+          // A. TOMBOL VERIFY (waitlist_verify)
           if (customId === 'waitlist_verify') {
             const modal = new ModalBuilder()
               .setCustomId('modal_verify_form:global')
@@ -268,7 +277,7 @@ export default {
             return await interaction.showModal(modal);
           }
 
-          // 2. TOMBOL GAMEMODE (gm_crystal, gm_sword, gm_spearmace, dll)
+          // B. TOMBOL GAMEMODE (gm_crystal, gm_sword, dll)
           if (customId.startsWith('gm_')) {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -329,7 +338,7 @@ export default {
             }
           }
 
-          // 3. TOMBOL DI DALAM EMBED ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
+          // C. TOMBOL ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
           const [action, queueModeKey] = customId.split(':');
 
           // TOGGLE STATUS QUEUE
@@ -417,11 +426,11 @@ export default {
             return;
           }
 
-          // Fallback ke handler button umum jika ada
+          // Fallback ke handler button dinamis/umum jika ada
           const button = client.buttons?.get(action);
           if (button) {
             try {
-              await button.execute(interaction, client, [queueModeKey]);
+              await button.execute(interaction, client, [queueModeKey], supabase);
             } catch (error) {
               await handleInteractionError(interaction, error, withTraceContext({
                 type: 'button',
@@ -429,9 +438,13 @@ export default {
               }, interactionTraceContext));
             }
           }
+          return;
+        }
 
-        // --- HANDLER MODAL SUBMIT ---
-        } else if (interaction.isModalSubmit()) {
+        // ==========================================
+        // 4. HANDLER MODAL SUBMIT
+        // ==========================================
+        if (interaction.isModalSubmit()) {
           const customId = interaction.customId;
 
           if (customId.startsWith('modal_verify_form')) {
@@ -517,7 +530,9 @@ export default {
               });
             }
           }
+          return;
         }
+
       } catch (error) {
         logger.error('Unhandled error in interactionCreate:', {
           event: 'interaction.unhandled_error',
