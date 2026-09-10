@@ -361,25 +361,34 @@ export default {
             }
         }
 
-        // 3. BUILD EMBED (HllowTier Style)
-        const minecraftAvatarUrl = `https://visage.surgeplay.com/bust/512/${username}`;
+        // 3. BUILD EMBED (HollowTiers Style)
+        // Asset Avatar Head style Minecraft khas HollowTiers / MCTiers
+        const minecraftHeadUrl = `https://mc-heads.net/avatar/${username}/512`;
+
+        const playerAvatarUrl = typeof player.displayAvatarURL === 'function' 
+            ? player.displayAvatarURL({ extension: 'png', size: 256 }) 
+            : player.avatarURL || client.user.displayAvatarURL();
+
+        const botAvatarUrl = typeof client.user.displayAvatarURL === 'function'
+            ? client.user.displayAvatarURL({ extension: 'png', size: 256 })
+            : client.user.avatarURL;
 
         const embed = new EmbedBuilder()
             .setAuthor({ 
                 name: `${username}'s Tier Test Result`, 
-                iconURL: player.displayAvatarURL({ forceStatic: false }) 
+                iconURL: playerAvatarUrl 
             })
-            .setColor('#2F3136')
-            .setThumbnail(minecraftAvatarUrl)
+            .setColor('#2b2d31') // Dark theme Discord / HollowTiers
+            .setThumbnail(minecraftHeadUrl)
             .addFields(
-                { name: 'Tester', value: `<@${tester.id}>`, inline: false },
-                { name: 'Region', value: `\`${region}\``, inline: false },
-                { name: 'Username', value: `\`${username}\``, inline: false },
-                { name: 'Previous Rank', value: `\`${previousRank}\``, inline: false },
-                { name: 'Rank Earned', value: `\`${rankEarned}\``, inline: false },
-                { name: 'Gamemode', value: `\`${gamemode}\``, inline: false }
+                { name: '👤 Tested Player', value: `<@${player.id}> (\`${username}\`)`, inline: true },
+                { name: '⚔️ Tester', value: `<@${tester.id}>`, inline: true },
+                { name: '🌐 Region', value: `\`${region}\``, inline: true },
+                { name: '🎮 Gamemode', value: `\`${gamemode}\``, inline: true },
+                { name: '📊 Previous Rank', value: `\`${previousRank}\``, inline: true },
+                { name: '🏆 Rank Earned', value: `\`${rankEarned}\``, inline: true }
             )
-            .setFooter({ text: 'Tier Test System', iconURL: client.user.displayAvatarURL() })
+            .setFooter({ text: 'HollowTiers • Tier Test System', iconURL: botAvatarUrl })
             .setTimestamp();
 
         // 4. SEND TO OUTPUT CHANNEL
