@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { waitlistService } from '../../services/waitlistservice.js';
-import { WaitlistUpdater } from '../../services/waitlistupdater.js'; // Adjust path if needed
 
 const TESTER_ROLE_IDS = [
   '1502537249131335710',
@@ -25,7 +24,7 @@ export default {
       });
     }
 
-    // 2. Pull Player via waitlistService
+    // 2. Pull Player via waitlistService (Otomatis hapus dari queue & update Embed)
     const result = waitlistService.pullNextPlayer();
 
     if (!result || !result.player) {
@@ -38,22 +37,9 @@ export default {
     const guild = interaction.guild;
     const categoryId = process.env.TICKET_CATEGORY_ID;
 
-    // =========================================================
-    // 3. HAPUS PLAYER DARI MEMORY QUEUE (JIKA BELUM TERHAPUS)
-    // =========================================================
-    const activeModeKey = modeKey || modeName?.toLowerCase();
-    const modeData = waitlistService.getMode ? waitlistService.getMode(activeModeKey) : null;
-
-    if (modeData && Array.isArray(modeData.queue)) {
-      // Hapus player spesifik dari array queue
-      modeData.queue = modeData.queue.filter(p => p.id !== player.id);
-    } else if (typeof waitlistService.removePlayer === 'function') {
-      waitlistService.removePlayer(activeModeKey, player.id);
-    }
-
-    // Hapus role waitlist dari member jika ada
+    // Hapus role waitlist pemain jika ada
     const targetWaitlistRoleId = typeof waitlistService.getWaitlistRole === 'function'
-      ? waitlistService.getWaitlistRole(activeModeKey)
+      ? waitlistService.getWaitlistRole(modeKey)
       : null;
 
     if (targetWaitlistRoleId) {
@@ -63,7 +49,7 @@ export default {
       }
     }
 
-    // Update status ke Supabase
+    // Catat ke Supabase
     const db = supabase || client?.supabase;
     if (db) {
       await db
@@ -74,22 +60,8 @@ export default {
         .catch((err) => console.error('Failed to update waitlist in Supabase:', err.message));
     }
 
-    // =========================================================
-    // 4. UPDATE PESAN EMBED WAITLIST DI CHANNEL DISCORD
-    // =========================================================
     try {
-      if (modeData && modeData.channelId && modeData.messageId) {
-        const queueChannel = await guild.channels.fetch(modeData.channelId).catch(() => null);
-        if (queueChannel) {
-          await WaitlistUpdater.updateMessage(queueChannel, modeData.messageId, activeModeKey, waitlistService);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to update waitlist embed message:', err);
-    }
-
-    try {
-      // 5. Create Ticket Channel
+      // 3. Create Ticket Channel
       const ticketChannel = await guild.channels.create({
         name: `ticket-${player.username || player.id}`,
         type: ChannelType.GuildText,
@@ -120,17 +92,17 @@ export default {
         ]
       });
 
-      // 6. Register Ticket into waitlistService memory
+      // 4. Register Ticket into waitlistService memory
       if (typeof waitlistService.registerTicket === 'function') {
-        waitlistService.registerTicket(ticketChannel.id, player, interaction.user.id, activeModeKey);
+        waitlistService.registerTicket(ticketChannel.id, player, interaction.user.id, modeKey);
       }
 
       await ticketChannel.send({
-        content: `Hello <@${player.id}>! Your testing ticket channel for **${modeName || activeModeKey}** has been created by Tester <@${interaction.user.id}>.\nUse \`/close\` once the testing session is finished.`
+        content: `Hello <@${player.id}>! Your testing ticket channel for **${modeName}** has been created by Tester <@${interaction.user.id}>.\nUse \`/close\` once the testing session is finished.`
       });
 
       return interaction.editReply({
-        content: `✅ Successfully pulled <@${player.id}> (${modeName || activeModeKey}). Ticket channel created: ${ticketChannel}`
+        content: `✅ Successfully pulled <@${player.id}> (${modeName}). Ticket channel created: ${ticketChannel}`
       });
 
     } catch (error) {
