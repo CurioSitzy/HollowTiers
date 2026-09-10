@@ -1,40 +1,16 @@
-import { 
-  SlashCommandBuilder, 
-  ChannelType, 
-  PermissionFlagsBits, 
-  MessageFlags,
-  EmbedBuilder
-} from 'discord.js';
+import { SlashCommandBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { waitlistService } from '../../services/waitlistservice.js';
+import { WaitlistUpdater } from '../../utils/WaitlistUpdater.js'; // Adjust path if needed
 
-// Central Role Config untuk Tester
 const TESTER_ROLE_IDS = [
   '1502537249131335710',
-  '1500479159485595722', // Verified Tester
+  '1500479159485595722',
 ];
 
 export default {
   data: new SlashCommandBuilder()
     .setName('pull')
-    .setDescription('Pull the top player from the waitlist and create a testing ticket')
-    .addStringOption(option =>
-      option.setName('mode')
-        .setDescription('Specific gamemode queue to pull from (optional)')
-        .setRequired(false)
-        .addChoices(
-          { name: 'Crystal', value: 'crystal' },
-          { name: 'Sword', value: 'sword' },
-          { name: 'Mace', value: 'mace' },
-          { name: 'Axe', value: 'axe' },
-          { name: 'UHC', value: 'uhc' },
-          { name: 'Pot', value: 'pot' },
-          { name: 'Nethop', value: 'nethop' },
-          { name: 'SMP', value: 'smp' },
-          { name: 'Cart', value: 'cart' },
-          { name: 'DiaSMP', value: 'diasmp' },
-          { name: 'SpearMace', value: 'spearmace' }
-        )
-    ),
+    .setDescription('Pull the top player from the waitlist and create a testing ticket'),
 
   async execute(interaction, guildConfig, client, supabase) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -42,44 +18,78 @@ export default {
     // 1. Role Permission Check
     const member = interaction.member;
     const hasTesterRole = TESTER_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
-    const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
 
-    if (!hasTesterRole && !isAdmin) {
+    if (!hasTesterRole && !member.permissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.editReply({
         content: '❌ **Access Denied!** Only **Tester** and **Verified Tester** roles can use this command.'
       });
     }
 
-    // 2. Determine Mode Option (if specified)
-    const targetMode = interaction.options.getString('mode');
-
-    // 3. Pull Player via waitlistService
-    let result = null;
-    if (targetMode) {
-      if (typeof waitlistService.pullPlayerFromMode === 'function') {
-        result = waitlistService.pullPlayerFromMode(targetMode);
-      } else if (typeof waitlistService.pullNextPlayer === 'function') {
-        result = waitlistService.pullNextPlayer(targetMode);
-      }
-    } else {
-      if (typeof waitlistService.pullNextPlayer === 'function') {
-        result = waitlistService.pullNextPlayer();
-      }
-    }
+    // 2. Pull Player via waitlistService
+    const result = waitlistService.pullNextPlayer();
 
     if (!result || !result.player) {
-      const modeText = targetMode ? `for **${targetMode.toUpperCase()}**` : '';
       return interaction.editReply({
-        content: `❌ The waitlist ${modeText} is empty or no active queues are open.`
+        content: '❌ The waitlist is empty or no active queues are open.'
       });
     }
 
-    const { player, modeName } = result;
+    const { player, modeName, modeKey } = result;
     const guild = interaction.guild;
     const categoryId = process.env.TICKET_CATEGORY_ID;
 
+    // =========================================================
+    // 3. HAPUS PLAYER DARI MEMORY QUEUE (JIKA BELUM TERHAPUS)
+    // =========================================================
+    const activeModeKey = modeKey || modeName?.toLowerCase();
+    const modeData = waitlistService.getMode ? waitlistService.getMode(activeModeKey) : null;
+
+    if (modeData && Array.isArray(modeData.queue)) {
+      // Hapus player spesifik dari array queue
+      modeData.queue = modeData.queue.filter(p => p.id !== player.id);
+    } else if (typeof waitlistService.removePlayer === 'function') {
+      waitlistService.removePlayer(activeModeKey, player.id);
+    }
+
+    // Hapus role waitlist dari member jika ada
+    const targetWaitlistRoleId = typeof waitlistService.getWaitlistRole === 'function'
+      ? waitlistService.getWaitlistRole(activeModeKey)
+      : null;
+
+    if (targetWaitlistRoleId) {
+      const pulledMember = await guild.members.fetch(player.id).catch(() => null);
+      if (pulledMember && pulledMember.roles.cache.has(targetWaitlistRoleId)) {
+        await pulledMember.roles.remove(targetWaitlistRoleId).catch(() => {});
+      }
+    }
+
+    // Update status ke Supabase
+    const db = supabase || client?.supabase;
+    if (db) {
+      await db
+        .from('waitlists')
+        .update({ status: 'testing' })
+        .eq('discord_id', player.id)
+        .eq('status', 'waiting')
+        .catch((err) => console.error('Failed to update waitlist in Supabase:', err.message));
+    }
+
+    // =========================================================
+    // 4. UPDATE PESAN EMBED WAITLIST DI CHANNEL DISCORD
+    // =========================================================
     try {
-      // 4. Create Ticket Channel
+      if (modeData && modeData.channelId && modeData.messageId) {
+        const queueChannel = await guild.channels.fetch(modeData.channelId).catch(() => null);
+        if (queueChannel) {
+          await WaitlistUpdater.updateMessage(queueChannel, modeData.messageId, activeModeKey, waitlistService);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update waitlist embed message:', err);
+    }
+
+    try {
+      // 5. Create Ticket Channel
       const ticketChannel = await guild.channels.create({
         name: `ticket-${player.username || player.id}`,
         type: ChannelType.GuildText,
@@ -110,38 +120,17 @@ export default {
         ]
       });
 
-      // 5. Register Ticket into waitlistService memory
+      // 6. Register Ticket into waitlistService memory
       if (typeof waitlistService.registerTicket === 'function') {
-        waitlistService.registerTicket(ticketChannel.id, player, interaction.user.id, modeName);
+        waitlistService.registerTicket(ticketChannel.id, player, interaction.user.id, activeModeKey);
       }
-
-      // 6. Automatically Remove Waitlist Role from the pulled player (if mapped)
-      const targetWaitlistRoleId = waitlistService.getWaitlistRole ? waitlistService.getWaitlistRole(modeName) : null;
-      if (targetWaitlistRoleId) {
-        const targetMember = await guild.members.fetch(player.id).catch(() => null);
-        if (targetMember && targetMember.roles.cache.has(targetWaitlistRoleId)) {
-          await targetMember.roles.remove(targetWaitlistRoleId).catch(() => {});
-        }
-      }
-
-      // 7. Send Ticket Welcome Message
-      const welcomeEmbed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle(`⚔️ Testing Ticket - ${modeName?.toUpperCase() || 'GENERAL'}`)
-        .setDescription(
-          `Welcome <@${player.id}>!\n\n` +
-          `Your testing session for **${modeName?.toUpperCase() || 'Waitlist'}** has been initiated by Tester <@${interaction.user.id}>.\n\n` +
-          `Please coordinate with your tester here. Once finished, the tester can run \`/close\` to close this ticket.`
-        )
-        .setTimestamp();
 
       await ticketChannel.send({
-        content: `<@${player.id}> | <@${interaction.user.id}>`,
-        embeds: [welcomeEmbed]
+        content: `Hello <@${player.id}>! Your testing ticket channel for **${modeName || activeModeKey}** has been created by Tester <@${interaction.user.id}>.\nUse \`/close\` once the testing session is finished.`
       });
 
       return interaction.editReply({
-        content: `✅ Successfully pulled <@${player.id}> (${modeName?.toUpperCase() || 'Waitlist'}). Ticket channel created: ${ticketChannel}`
+        content: `✅ Successfully pulled <@${player.id}> (${modeName || activeModeKey}). Ticket channel created: ${ticketChannel}`
       });
 
     } catch (error) {
