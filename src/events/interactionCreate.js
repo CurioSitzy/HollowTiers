@@ -60,6 +60,24 @@ const WAITLIST_ROLES = {
   spearmace: '1546413406918152223',
 };
 
+// ==========================================
+// TESTER ROLE IDs PER GAMEMODE (TAMBAHAN KHUSUS TESTER)
+// ISI DENGAN ID ROLE TESTER MASING-MASING GAMEMODE
+// ==========================================
+const TESTER_ROLES = {
+  crystal: '1546352188757119107',
+  sword: '1546352203739045888',
+  mace: '1546163052909428796', // <-- Masukkan ID Role Tester Mace di sini
+  axe: '1546352170721607710',
+  uhc: '1546349340778438687',
+  pot: '1546349242245971998',
+  nethop: '1546349287720488970',
+  smp: '1546352269333635152',
+  cart: '1546349356020666439',
+  diasmp: '1546352284135334019',
+  spearmace: '1546349379709833296', // <-- Masukkan ID Role Tester Spearmace di sini
+};
+
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
   kick: 'kick_failed',
@@ -341,7 +359,7 @@ export default {
           // C. TOMBOL ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
           const [action, queueModeKey] = customId.split(':');
 
-          // TOGGLE STATUS QUEUE (PERBAIKAN SAFE GUARD)
+          // TOGGLE STATUS QUEUE
           if (action === 'waitlist_toggle') {
             try {
               const member = interaction.member;
@@ -353,17 +371,28 @@ export default {
                 });
               }
 
-              const allowedRole = waitlistService && typeof waitlistService.getTesterRole === 'function' 
+              // 1. Ambil Role Tester khusus dari object TESTER_ROLES di atas
+              const specificTesterRoleId = TESTER_ROLES[queueModeKey];
+              const hasSpecificTesterRole = specificTesterRoleId ? member.roles.cache.has(specificTesterRoleId) : false;
+
+              // 2. Ambil Role Tester dari waitlistService jika ada
+              const serviceTesterRoleId = waitlistService && typeof waitlistService.getTesterRole === 'function' 
                 ? waitlistService.getTesterRole(queueModeKey) 
                 : null;
+              const hasServiceTesterRole = serviceTesterRoleId ? member.roles.cache.has(serviceTesterRoleId) : false;
 
-              const hasTesterRole = allowedRole ? member.roles.cache.has(allowedRole) : false;
+              // 3. Cek fungsi isTester di waitlistService
               const isServiceTester = waitlistService && typeof waitlistService.isTester === 'function' 
                 ? waitlistService.isTester(member, queueModeKey) 
                 : false;
+
+              // 4. Cek Administrator
               const isAdmin = member.permissions?.has(PermissionFlagsBits.Administrator);
 
-              if (!hasTesterRole && !isServiceTester && !isAdmin) {
+              // Jika salah satu dari izin di atas terpenuhi, beri akses
+              const isAllowed = hasSpecificTesterRole || hasServiceTesterRole || isServiceTester || isAdmin;
+
+              if (!isAllowed) {
                 return await interaction.reply({
                   content: `❌ You do not have the required tester role for **${queueModeKey?.toUpperCase() || 'this mode'}** to toggle this queue!`,
                   ephemeral: true
