@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { waitlistService } from '../../services/waitlistservice.js';
-import { WaitlistUpdater } from '../../utils/WaitlistUpdater.js'; // Adjust path if needed
+import { WaitlistUpdater } from '../../utils/waitlistupdater.js'; // Adjust path if needed
 
 const TESTER_ROLE_IDS = [
   '1502537249131335710',
