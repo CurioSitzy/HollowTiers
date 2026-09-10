@@ -6,22 +6,23 @@ const DATA_FILE = path.join(process.cwd(), 'playerData.json');
 export class WaitlistService {
   constructor() {
     this.playerData = new Map();
-    this.activeTickets = new Map(); // Untuk menyimpan data room ticket yang sedang aktif
+    this.activeTickets = new Map();
     this.loadPlayerData();
 
+    // Tambahkan properti channelId di tiap mode
     this.modes = new Map([
-      ['mace', { name: 'Mace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['sword', { name: 'Sword', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['crystal', { name: 'Crystal', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['axe', { name: 'Axe', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['pot', { name: 'Pot', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['diapot', { name: 'Dia Pot', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['uhc', { name: 'UHC', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['smp', { name: 'SMP', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['diasmp', { name: 'Dia SMP', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['spearmace', { name: 'Spearmace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['cart', { name: 'Cart', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
-      ['nethop', { name: 'NetHop', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }]
+      ['mace', { name: 'Mace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['sword', { name: 'Sword', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['crystal', { name: 'Crystal', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['axe', { name: 'Axe', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['pot', { name: 'Pot', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['diapot', { name: 'Dia Pot', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['uhc', { name: 'UHC', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['smp', { name: 'SMP', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['diasmp', { name: 'Dia SMP', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['spearmace', { name: 'Spearmace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['cart', { name: 'Cart', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
+      ['nethop', { name: 'NetHop', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }]
     ]);
   }
 
@@ -68,6 +69,12 @@ export class WaitlistService {
   setMessageId(modeKey, messageId) {
     const mode = this.getMode(modeKey);
     if (mode) mode.messageId = messageId;
+  }
+
+  // Method baru untuk menyimpan Channel ID
+  setChannelId(modeKey, channelId) {
+    const mode = this.getMode(modeKey);
+    if (mode) mode.channelId = channelId;
   }
 
   isTester(member, modeKey) {
@@ -125,36 +132,39 @@ export class WaitlistService {
   // FITUR PULL & TICKET SYSTEM
   // ==========================================
 
-  // Mengambil player paling atas dari antrean mode yang sedang terbuka
   pullNextPlayer(modeKey = null) {
     if (modeKey) {
       const mode = this.getMode(modeKey);
       if (mode && mode.queue.length > 0) {
-        return { player: mode.queue.shift(), modeName: mode.name };
+        return { 
+          player: mode.queue.shift(), 
+          modeName: mode.name, 
+          modeKey: modeKey.toLowerCase() 
+        };
       }
       return null;
     }
 
-    // Jika modeKey tidak ditentukan, cari antrean teratas dari mode pertama yang buka
     for (const [key, mode] of this.modes.entries()) {
       if (mode.isOpen && mode.queue.length > 0) {
-        return { player: mode.queue.shift(), modeName: mode.name };
+        return { 
+          player: mode.queue.shift(), 
+          modeName: mode.name, 
+          modeKey: key 
+        };
       }
     }
     return null;
   }
 
-  // Mendaftarkan channel ticket yang aktif
   registerTicket(channelId, player, testerId) {
     this.activeTickets.set(channelId, { player, testerId, createdAt: Date.now() });
   }
 
-  // Mengambil data ticket berdasarkan Channel ID
   getTicket(channelId) {
     return this.activeTickets.get(channelId) || null;
   }
 
-  // Menghapus ticket dari memori
   removeTicket(channelId) {
     return this.activeTickets.delete(channelId);
   }
