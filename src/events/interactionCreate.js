@@ -212,7 +212,7 @@ export default {
               subtype: COMMAND_ERROR_SUBTYPES[interaction.commandName] || error?.context?.subtype,
             }, interactionTraceContext));
           }
-          return; // Menghentikan eksekusi agar tidak lanjut ke handler lain
+          return;
         }
 
         // ==========================================
@@ -343,10 +343,12 @@ export default {
 
           // TOGGLE STATUS QUEUE
           if (action === 'waitlist_toggle') {
-            const isTester = waitlistService ? waitlistService.isTester(interaction.member, queueModeKey) : false;
+            const allowedRole = waitlistService ? waitlistService.getTesterRole(queueModeKey) : null;
+            const hasTesterRole = allowedRole ? interaction.member?.roles.cache.has(allowedRole) : false;
+            const isServiceTester = waitlistService ? waitlistService.isTester(interaction.member, queueModeKey) : false;
             const isAdmin = interaction.member?.permissions.has(PermissionFlagsBits.Administrator);
 
-            if (!isTester && !isAdmin) {
+            if (!hasTesterRole && !isServiceTester && !isAdmin) {
               return await interaction.reply({
                 content: `❌ You do not have the required tester role for **${queueModeKey?.toUpperCase() || 'this mode'}** to toggle this queue!`,
                 ephemeral: true
