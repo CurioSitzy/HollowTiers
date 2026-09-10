@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 
-const INPUT_CHANNEL_ID = '1509184085015269516'; // Channel #result-commands
-const OUTPUT_CHANNEL_ID = '1500797205382959164'; // Channel Output Embed
+const INPUT_CHANNEL_ID = '1509184085015269516'; // #result-commands channel
+const OUTPUT_CHANNEL_ID = '1500797205382959164'; // Output channel for the embed result
 
-// Pilihan Tier berurutan dari Tertinggi (HT1) ke Terendah (LT5)
+// Rank choices ordered from highest (HT1) to lowest (LT5)
 const RANK_CHOICES = [
     { name: 'HT1', value: 'HT1' },
     { name: 'LT1', value: 'LT1' },
@@ -33,7 +33,7 @@ const TIER_POINTS = {
     'N/A': 0
 };
 
-// Mapping Gamemode ke ID Supabase
+// Gamemode Mapping to Supabase IDs
 const GAMEMODE_MAPPING = {
     'Sword': 'sword',
     'Axe': 'axe',
@@ -48,7 +48,7 @@ const GAMEMODE_MAPPING = {
 };
 
 // =========================================================
-// 📌 DAFTAR ID ROLE DISCORD LENGKAP (HT1 -> LT5)
+// 📌 DISCORD ROLE IDS MAPPING (HT1 -> LT5)
 // Format Key: "GAMEMODE_TIER"
 // =========================================================
 const ROLE_IDS = {
@@ -177,7 +177,7 @@ export default {
     category: 'Tiers',
     data: new SlashCommandBuilder()
         .setName('testresult')
-        .setDescription('Send a player tier test result')
+        .setDescription('Submit a player tier testing result')
         .addUserOption(option => 
             option.setName('player')
                 .setDescription('The player who was tested')
@@ -188,14 +188,14 @@ export default {
                 .setRequired(true))
         .addStringOption(option => 
             option.setName('region')
-                .setDescription('Region')
+                .setDescription('Player region')
                 .setRequired(true)
                 .addChoices(
-                    { name: 'NorthAmerica (NA)', value: 'NA' },
+                    { name: 'North America (NA)', value: 'NA' },
                     { name: 'Europe (EU)', value: 'EU' },
                     { name: 'Asia (AS)', value: 'AS' },
                     { name: 'Australia (AU)', value: 'AU' },
-                    { name: 'SouthAmerica (SA)', value: 'SA' }
+                    { name: 'South America (SA)', value: 'SA' }
                 ))
         .addStringOption(option => 
             option.setName('username')
@@ -203,7 +203,7 @@ export default {
                 .setRequired(true))
         .addStringOption(option => 
             option.setName('gamemode')
-                .setDescription('Gamemode / Tier Test')
+                .setDescription('Gamemode tested')
                 .setRequired(true)
                 .addChoices(
                     { name: 'Sword', value: 'Sword' },
@@ -219,19 +219,19 @@ export default {
                 ))
         .addStringOption(option => 
             option.setName('previous_rank')
-                .setDescription('Previous rank')
+                .setDescription('Previous rank of the player')
                 .setRequired(true)
                 .addChoices(...RANK_CHOICES))
         .addStringOption(option => 
             option.setName('rank_earned')
-                .setDescription('Rank earned')
+                .setDescription('New rank earned')
                 .setRequired(true)
                 .addChoices(...RANK_CHOICES)),
 
     async execute(interaction, client, supabase) {
         if (interaction.channelId !== INPUT_CHANNEL_ID) {
             return await interaction.reply({
-                content: `❌ Command ini hanya dapat digunakan di channel <#${INPUT_CHANNEL_ID}>!`,
+                content: `❌ This command can only be used in <#${INPUT_CHANNEL_ID}>!`,
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -246,7 +246,7 @@ export default {
         const previousRank = interaction.options.getString('previous_rank');
         const rankEarned = interaction.options.getString('rank_earned');
 
-        // 1. UPDATE DISCORD ROLE (Hapus semua role gamemode terkait & Tambah role baru)
+        // 1. DISCORD ROLE MANAGEMENT (Remove existing gamemode roles & Assign new role)
         let roleAddedStatus = '';
         if (interaction.guild) {
             try {
@@ -254,12 +254,12 @@ export default {
                 if (member) {
                     let removedRoles = [];
                     
-                    // Kumpulkan semua Role ID untuk gamemode ini
+                    // Filter all Role IDs for this gamemode
                     const gamemodeRoleIds = Object.keys(ROLE_IDS)
                         .filter(key => key.startsWith(`${gamemode}_`))
                         .map(key => ROLE_IDS[key]);
 
-                    // Copot semua role tier gamemode ini yang dimiliki player saat ini
+                    // Remove existing gamemode tier roles from the player
                     for (const roleId of gamemodeRoleIds) {
                         if (member.roles.cache.has(roleId)) {
                             const r = interaction.guild.roles.cache.get(roleId);
@@ -268,37 +268,37 @@ export default {
                         }
                     }
 
-                    // Tambahkan role baru jika rankEarned bukan N/A
+                    // Assign new role if rankEarned is not N/A
                     if (rankEarned !== 'N/A') {
                         const targetRoleId = ROLE_IDS[`${gamemode}_${rankEarned}`];
                         if (targetRoleId) {
                             const targetRole = interaction.guild.roles.cache.get(targetRoleId);
                             if (targetRole) {
                                 await member.roles.add(targetRole);
-                                roleAddedStatus = `\n🎖️ Role **${targetRole.name}** berhasil diberikan!`;
+                                roleAddedStatus = `\n🎖️ Role **${targetRole.name}** assigned successfully!`;
                                 if (removedRoles.length > 0) {
-                                    roleAddedStatus += ` (Role lama dicopot: **${removedRoles.join(', ')}**)`;
+                                    roleAddedStatus += ` (Removed old roles: **${removedRoles.join(', ')}**)`;
                                 }
                             } else {
-                                roleAddedStatus = `\n⚠️ Role ID ada tetapi role tidak ditemukan di server!`;
+                                roleAddedStatus = `\n⚠️ Role ID exists, but the role was not found in the guild!`;
                             }
                         } else {
-                            roleAddedStatus = `\n⚠️ Role ID untuk **${gamemode} ${rankEarned}** tidak terdaftar di bot!`;
+                            roleAddedStatus = `\n⚠️ Role ID for **${gamemode} ${rankEarned}** is not registered!`;
                         }
                     } else {
-                        roleAddedStatus = `\nℹ️ Rank diset ke N/A${removedRoles.length > 0 ? ` (Role **${removedRoles.join(', ')}** dicopot)` : ''}.`;
+                        roleAddedStatus = `\nℹ️ Rank set to N/A${removedRoles.length > 0 ? ` (Removed: **${removedRoles.join(', ')}**)` : ''}.`;
                     }
                 }
             } catch (roleErr) {
                 console.error('❌ Error updating roles:', roleErr);
-                roleAddedStatus = `\n❌ Gagal memperbarui role (Pastikan hierarki role bot berada di atas role tier).`;
+                roleAddedStatus = `\n❌ Failed to update roles (Ensure bot hierarchy is higher than tier roles).`;
             }
         }
 
-        // 2. INTEGRASI SUPABASE & PERHITUNGAN POIN
+        // 2. SUPABASE INTEGRATION & RECALCULATE POINTS
         if (supabase) {
             try {
-                // Upsert data player
+                // Upsert player record
                 const { data: playerData, error: playerErr } = await supabase
                     .from('players')
                     .upsert([
@@ -318,7 +318,7 @@ export default {
                     const playerId = playerData.id;
                     const mappedGamemodeId = GAMEMODE_MAPPING[gamemode] || gamemode.toLowerCase();
 
-                    // Upsert tier player
+                    // Upsert tier record
                     const { error: tierErr } = await supabase
                         .from('player_tiers')
                         .upsert([
@@ -361,40 +361,44 @@ export default {
             }
         }
 
-        // 3. BUILD EMBED
+        // 3. BUILD EMBED (HllowTier Style)
         const minecraftAvatarUrl = `https://visage.surgeplay.com/bust/512/${username}`;
 
         const embed = new EmbedBuilder()
             .setAuthor({ 
-                name: `${username}'s Test Results`, 
-                iconURL: player.displayAvatarURL({ dynamic: true }) 
+                name: `${username}'s Tier Test Result`, 
+                iconURL: player.displayAvatarURL({ forceStatic: false }) 
             })
-            .setColor('#D00000')
+            .setColor('#2F3136')
             .setThumbnail(minecraftAvatarUrl)
             .addFields(
-                { name: 'Tester:', value: `<@${tester.id}>`, inline: false },
-                { name: 'Region:', value: `\`${region}\``, inline: false },
-                { name: 'Username:', value: `\`${username}\``, inline: false },
-                { name: 'Previous Rank:', value: `\`${previousRank}\``, inline: false },
-                { name: 'Rank Earned:', value: `\`${rankEarned}\``, inline: false },
-                { name: 'Gamemode:', value: `\`${gamemode}\``, inline: false }
-            );
+                { name: 'Tester', value: `<@${tester.id}>`, inline: false },
+                { name: 'Region', value: `\`${region}\``, inline: false },
+                { name: 'Username', value: `\`${username}\``, inline: false },
+                { name: 'Previous Rank', value: `\`${previousRank}\``, inline: false },
+                { name: 'Rank Earned', value: `\`${rankEarned}\``, inline: false },
+                { name: 'Gamemode', value: `\`${gamemode}\``, inline: false }
+            )
+            .setFooter({ text: 'Tier Test System', iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
 
         // 4. SEND TO OUTPUT CHANNEL
         try {
             const outputChannel = await client.channels.fetch(OUTPUT_CHANNEL_ID);
-            if (outputChannel) {
+            if (outputChannel && outputChannel.isTextBased()) {
                 await outputChannel.send({
                     content: `<@${player.id}> [${region}]`,
                     embeds: [embed]
                 });
+            } else {
+                console.error('❌ Output channel not found or is not a text channel.');
             }
         } catch (chanErr) {
-            console.error('Gagal mengirim ke channel output:', chanErr);
+            console.error('❌ Failed to send embed to output channel:', chanErr);
         }
 
         return await interaction.editReply({
-            content: `✅ Hasil tes berhasil disimpan dan dikirim ke <#${OUTPUT_CHANNEL_ID}>!${roleAddedStatus}`
+            content: `✅ Test result successfully submitted and sent to <#${OUTPUT_CHANNEL_ID}>!${roleAddedStatus}`
         });
     }
 };
