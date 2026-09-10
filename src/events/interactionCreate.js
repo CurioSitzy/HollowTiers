@@ -341,27 +341,47 @@ export default {
           // C. TOMBOL ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
           const [action, queueModeKey] = customId.split(':');
 
-          // TOGGLE STATUS QUEUE
+          // TOGGLE STATUS QUEUE (PERBAIKAN SAFE GUARD)
           if (action === 'waitlist_toggle') {
-            const allowedRole = waitlistService ? waitlistService.getTesterRole(queueModeKey) : null;
-            const hasTesterRole = allowedRole ? interaction.member?.roles.cache.has(allowedRole) : false;
-            const isServiceTester = waitlistService ? waitlistService.isTester(interaction.member, queueModeKey) : false;
-            const isAdmin = interaction.member?.permissions.has(PermissionFlagsBits.Administrator);
-
-            if (!hasTesterRole && !isServiceTester && !isAdmin) {
-              return await interaction.reply({
-                content: `❌ You do not have the required tester role for **${queueModeKey?.toUpperCase() || 'this mode'}** to toggle this queue!`,
-                ephemeral: true
-              });
-            }
-
-            await interaction.deferUpdate().catch(() => {});
-            waitlistService.toggleOpen(queueModeKey, interaction.user.id);
-
             try {
+              const member = interaction.member;
+
+              if (!member || !member.roles) {
+                return await interaction.reply({
+                  content: '❌ Member data could not be retrieved.',
+                  ephemeral: true
+                });
+              }
+
+              const allowedRole = waitlistService && typeof waitlistService.getTesterRole === 'function' 
+                ? waitlistService.getTesterRole(queueModeKey) 
+                : null;
+
+              const hasTesterRole = allowedRole ? member.roles.cache.has(allowedRole) : false;
+              const isServiceTester = waitlistService && typeof waitlistService.isTester === 'function' 
+                ? waitlistService.isTester(member, queueModeKey) 
+                : false;
+              const isAdmin = member.permissions?.has(PermissionFlagsBits.Administrator);
+
+              if (!hasTesterRole && !isServiceTester && !isAdmin) {
+                return await interaction.reply({
+                  content: `❌ You do not have the required tester role for **${queueModeKey?.toUpperCase() || 'this mode'}** to toggle this queue!`,
+                  ephemeral: true
+                });
+              }
+
+              await interaction.deferUpdate().catch(() => {});
+
+              if (waitlistService && typeof waitlistService.toggleOpen === 'function') {
+                waitlistService.toggleOpen(queueModeKey, interaction.user.id);
+              }
+
               await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, queueModeKey, waitlistService);
             } catch (err) {
-              logger.error(`Failed updating waitlist on toggle for ${queueModeKey}:`, err);
+              logger.error(`Error in waitlist_toggle for ${queueModeKey}:`, err);
+              if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: '❌ An error occurred while toggling the queue.', ephemeral: true }).catch(() => {});
+              }
             }
             return;
           }
