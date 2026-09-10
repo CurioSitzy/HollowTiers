@@ -30,7 +30,7 @@ import { waitlistService } from '../services/waitlistservice.js';
 import { WaitlistUpdater } from '../services/waitlistupdater.js';
 
 // ==========================================
-// CONFIGURATION ROLE ID
+// ROLE ID CONFIGURATION
 // ==========================================
 const REGION_ROLES = {
   AS: '1500479159456235533',
@@ -60,14 +60,11 @@ const WAITLIST_ROLES = {
   spearmace: '1546413406918152223',
 };
 
-// ==========================================
-// TESTER ROLE IDs PER GAMEMODE (TAMBAHAN KHUSUS TESTER)
-// ISI DENGAN ID ROLE TESTER MASING-MASING GAMEMODE
-// ==========================================
+// Tester Role IDs per Gamemode
 const TESTER_ROLES = {
   crystal: '1546352188757119107',
   sword: '1546352203739045888',
-  mace: '1546163052909428796', // <-- Masukkan ID Role Tester Mace di sini
+  mace: '1546163052909428796',
   axe: '1546352170721607710',
   uhc: '1546349340778438687',
   pot: '1546349242245971998',
@@ -75,8 +72,11 @@ const TESTER_ROLES = {
   smp: '1546352269333635152',
   cart: '1546349356020666439',
   diasmp: '1546352284135334019',
-  spearmace: '1546349379709833296', // <-- Masukkan ID Role Tester Spearmace di sini
+  spearmace: '1546349379709833296',
 };
+
+// Verified Tester Role ID (Replace with your actual Verified Tester role ID)
+const VERIFIED_TESTER_ROLE_ID = '1500479159485595722';
 
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
@@ -117,7 +117,7 @@ export default {
         ResponseCoordinator.attach(interaction);
 
         // ==========================================
-        // 1. HANDLER SLASH COMMANDS
+        // 1. SLASH COMMANDS HANDLER
         // ==========================================
         if (interaction.isChatInputCommand()) {
           try {
@@ -161,6 +161,27 @@ export default {
                 getBotMessage('commandDisabled'),
                 withTraceContext({ commandName: interaction.commandName, category: command.category }, interactionTraceContext)
               );
+            }
+
+            // ==========================================
+            // TIERLIST COMMAND ACCESS PROTECTION
+            // ==========================================
+            const isTierlistCmd = command.category?.toLowerCase() === 'tierlist' || interaction.commandName.toLowerCase().includes('tier');
+
+            if (isTierlistCmd) {
+              const member = interaction.member;
+              const allTesterRoleIds = Object.values(TESTER_ROLES);
+
+              const hasTesterRole = member?.roles?.cache?.some(role => allTesterRoleIds.includes(role.id));
+              const hasVerifiedTesterRole = member?.roles?.cache?.has(VERIFIED_TESTER_ROLE_ID);
+              const isAdmin = member?.permissions?.has(PermissionFlagsBits.Administrator);
+
+              if (!hasTesterRole && !hasVerifiedTesterRole && !isAdmin) {
+                return await interaction.reply({
+                  content: '❌ You do not have the required **Tester** or **Verified Tester** role to use tierlist commands!',
+                  flags: 64
+                });
+              }
             }
 
             const defaultCooldownSec = Number(botConfig.commands?.defaultCooldown) || 0;
@@ -221,7 +242,7 @@ export default {
               return;
             }
 
-            // Eksekusi command
+            // Execute command
             await command.execute(interaction, guildConfig, client, supabase);
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
@@ -234,7 +255,7 @@ export default {
         }
 
         // ==========================================
-        // 2. HANDLER AUTOCOMPLETE
+        // 2. AUTOCOMPLETE HANDLER
         // ==========================================
         if (interaction.isAutocomplete()) {
           const autocompleteCommand = client.commands.get(interaction.commandName);
@@ -254,12 +275,12 @@ export default {
         }
 
         // ==========================================
-        // 3. HANDLER BUTTON INTERACTION
+        // 3. BUTTON INTERACTION HANDLER
         // ==========================================
         if (interaction.isButton()) {
           const customId = interaction.customId;
 
-          // A. TOMBOL VERIFY (waitlist_verify)
+          // A. VERIFICATION BUTTON (waitlist_verify)
           if (customId === 'waitlist_verify') {
             const modal = new ModalBuilder()
               .setCustomId('modal_verify_form:global')
@@ -277,6 +298,7 @@ export default {
               .setLabel('Region (AS / EU / NA / AU / SA)')
               .setStyle(TextInputStyle.Short)
               .setPlaceholder('e.g. AS')
+              .setStyle(TextInputStyle.Short)
               .setRequired(true);
 
             const typeInput = new TextInputBuilder()
@@ -295,7 +317,7 @@ export default {
             return await interaction.showModal(modal);
           }
 
-          // B. TOMBOL GAMEMODE (gm_crystal, gm_sword, dll)
+          // B. GAMEMODE BUTTONS (gm_crystal, gm_sword, etc.)
           if (customId.startsWith('gm_')) {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -308,6 +330,22 @@ export default {
                   stats = waitlistService.getPlayerStats(interaction.user.id);
                 } else if (typeof waitlistService.getStats === 'function') {
                   stats = waitlistService.getStats(interaction.user.id);
+                }
+              }
+
+              // FALLBACK: CHECK SUPABASE IF LOCAL CACHE IS EMPTY
+              if (!stats && supabase) {
+                const { data: dbPlayer } = await supabase
+                  .from('players')
+                  .select('*')
+                  .eq('discord_id', interaction.user.id)
+                  .single();
+
+                if (dbPlayer) {
+                  stats = { ign: dbPlayer.ign, region: dbPlayer.region, type: dbPlayer.account_type };
+                  if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
+                    waitlistService.setPlayerStats(interaction.user.id, stats);
+                  }
                 }
               }
 
@@ -356,10 +394,10 @@ export default {
             }
           }
 
-          // C. TOMBOL ANTREAN GAMEMODE (waitlist_join, waitlist_leave, waitlist_toggle)
+          // C. QUEUE ACTION BUTTONS (waitlist_join, waitlist_leave, waitlist_toggle)
           const [action, queueModeKey] = customId.split(':');
 
-          // TOGGLE STATUS QUEUE
+          // TOGGLE QUEUE STATUS
           if (action === 'waitlist_toggle') {
             try {
               const member = interaction.member;
@@ -371,26 +409,22 @@ export default {
                 });
               }
 
-              // 1. Ambil Role Tester khusus dari object TESTER_ROLES di atas
               const specificTesterRoleId = TESTER_ROLES[queueModeKey];
               const hasSpecificTesterRole = specificTesterRoleId ? member.roles.cache.has(specificTesterRoleId) : false;
+              const hasVerifiedTesterRole = member.roles.cache.has(VERIFIED_TESTER_ROLE_ID);
 
-              // 2. Ambil Role Tester dari waitlistService jika ada
               const serviceTesterRoleId = waitlistService && typeof waitlistService.getTesterRole === 'function' 
                 ? waitlistService.getTesterRole(queueModeKey) 
                 : null;
               const hasServiceTesterRole = serviceTesterRoleId ? member.roles.cache.has(serviceTesterRoleId) : false;
 
-              // 3. Cek fungsi isTester di waitlistService
               const isServiceTester = waitlistService && typeof waitlistService.isTester === 'function' 
                 ? waitlistService.isTester(member, queueModeKey) 
                 : false;
 
-              // 4. Cek Administrator
               const isAdmin = member.permissions?.has(PermissionFlagsBits.Administrator);
 
-              // Jika salah satu dari izin di atas terpenuhi, beri akses
-              const isAllowed = hasSpecificTesterRole || hasServiceTesterRole || isServiceTester || isAdmin;
+              const isAllowed = hasSpecificTesterRole || hasVerifiedTesterRole || hasServiceTesterRole || isServiceTester || isAdmin;
 
               if (!isAllowed) {
                 return await interaction.reply({
@@ -420,6 +454,22 @@ export default {
             let stats = null;
             if (waitlistService && typeof waitlistService.getPlayerStats === 'function') {
               stats = waitlistService.getPlayerStats(interaction.user.id);
+            }
+
+            // FALLBACK TO DATABASE IF LOCAL DATA IS EMPTY
+            if (!stats && supabase) {
+              const { data: dbPlayer } = await supabase
+                .from('players')
+                .select('*')
+                .eq('discord_id', interaction.user.id)
+                .single();
+
+              if (dbPlayer) {
+                stats = { ign: dbPlayer.ign, region: dbPlayer.region, type: dbPlayer.account_type };
+                if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
+                  waitlistService.setPlayerStats(interaction.user.id, stats);
+                }
+              }
             }
 
             if (!stats) {
@@ -477,7 +527,7 @@ export default {
             return;
           }
 
-          // Fallback ke handler button dinamis/umum jika ada
+          // Fallback to general dynamic button handlers if available
           const button = client.buttons?.get(action);
           if (button) {
             try {
@@ -493,7 +543,7 @@ export default {
         }
 
         // ==========================================
-        // 4. HANDLER MODAL SUBMIT
+        // 4. MODAL SUBMIT HANDLER
         // ==========================================
         if (interaction.isModalSubmit()) {
           const customId = interaction.customId;
@@ -552,12 +602,30 @@ export default {
                 }
               }
 
+              // Save verification stats locally
               if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
                 waitlistService.setPlayerStats(interaction.user.id, { 
                   ign, 
                   region, 
                   type 
                 });
+              }
+
+              // PERSIST DATA TO SUPABASE DATABASE
+              if (supabase) {
+                const { error: dbError } = await supabase
+                  .from('players')
+                  .upsert({ 
+                    discord_id: interaction.user.id, 
+                    ign: ign, 
+                    region: region, 
+                    account_type: type,
+                    updated_at: new Date().toISOString()
+                  }, { onConflict: 'discord_id' });
+
+                if (dbError) {
+                  logger.error(`Failed to save player verification to Supabase for ${interaction.user.tag}:`, dbError);
+                }
               }
 
               const successEmbed = new EmbedBuilder()
