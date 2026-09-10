@@ -201,7 +201,8 @@ export default {
               return;
             }
 
-            await command.execute(interaction, guildConfig, client);
+            // Diteruskan Supabase client (dari client.supabase) sebagai argumen ke-3 ke execute
+            await command.execute(interaction, guildConfig, client.supabase || client);
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
               type: 'command',
