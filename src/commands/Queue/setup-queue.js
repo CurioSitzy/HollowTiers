@@ -2,6 +2,12 @@ import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { waitlistService } from '../../services/waitlistservice.js';
 import { WaitlistUpdater } from '../../services/waitlistupdater.js';
 
+// ID Role
+const ALLOWED_ROLE_IDS = [
+    '1546366823732351016', // ID Role Admin
+    '1500479159485595724'  // ID Role Verified Admin
+]; // 👈 PERBAIKAN 1: Menambahkan ']' dan ';' yang kurang
+
 export default {
   data: new SlashCommandBuilder()
     .setName('setup-queue')
@@ -21,7 +27,8 @@ export default {
           { name: 'SMP Tier', value: 'smp' },
           { name: 'Dia SMP Tier', value: 'diasmp' },
           { name: 'Cart Tier', value: 'cart' },
-          { name: 'Spear Mace Tier', value: 'spearmace' }
+          { name: 'Spear Mace Tier', value: 'spearmace' },
+          { name: 'NethOp Tier', value: 'nethop' }
         )
     )
     .addRoleOption(option =>
@@ -33,7 +40,17 @@ export default {
   category: 'Queue',
 
   async execute(interaction, guildConfig, client) {
-    await interaction.deferReply({ ephemeral: true });
+    // 👈 PERBAIKAN 2: Pengecekan permission dilakukan di awal
+    const hasPermission = interaction.member.roles.cache.some(role => ALLOWED_ROLE_IDS.includes(role.id));
+
+    if (!hasPermission) {
+      return await interaction.reply({
+        content: '❌ You do not have permission to use this command!',
+        flags: 64 // Ephemeral (hanya terlihat oleh user yang menjalankan command)
+      });
+    }
+
+    await interaction.deferReply({ flags: 64 }); // Menggunakan 'flags: 64' pengganti ephemeral: true (versi discord.js v14 terbaru)
 
     try {
       const modeKey = interaction.options.getString('gamemode');
