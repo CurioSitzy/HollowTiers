@@ -201,8 +201,8 @@ export default {
               return;
             }
 
-            // Diteruskan Supabase client (dari client.supabase) sebagai argumen ke-3 ke execute
-            await command.execute(interaction, guildConfig, client.supabase || client);
+            // Meneruskan client secara utuh sebagai argumen ke-3
+            await command.execute(interaction, guildConfig, client);
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
               type: 'command',
@@ -275,7 +275,6 @@ export default {
             try {
               const modeKey = customId.split('_')[1];
 
-              // Safe check getPlayerStats
               let stats = null;
               if (waitlistService) {
                 if (typeof waitlistService.getPlayerStats === 'function') {
@@ -445,7 +444,6 @@ export default {
 
               let nicknameUpdated = true;
 
-              // 1. Ubah Nickname Discord Player
               try {
                 if (interaction.guild && interaction.member) {
                   await interaction.member.setNickname(`${ign} [${region}]`);
@@ -455,7 +453,6 @@ export default {
                 logger.warn(`Could not change nickname for ${interaction.user.tag}: ${err.message}`);
               }
 
-              // 2. Tambahkan Role Region & Account Type
               if (interaction.guild && interaction.member) {
                 const allRegionRoleIds = Object.values(REGION_ROLES);
                 const allTypeRoleIds = Object.values(TYPE_ROLES);
@@ -491,7 +488,6 @@ export default {
                 }
               }
 
-              // 3. Simpan Data Player ke Cache Service
               if (waitlistService && typeof waitlistService.setPlayerStats === 'function') {
                 waitlistService.setPlayerStats(interaction.user.id, { 
                   ign, 
