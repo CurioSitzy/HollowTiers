@@ -24,15 +24,16 @@ export default {
       });
     }
 
-    // 2. Pull Next Player from Waitlist Service
-    const player = waitlistService.pullNextPlayer();
+    // 2. Pull Player via waitlistService
+    const result = waitlistService.pullNextPlayer();
 
-    if (!player) {
+    if (!result || !result.player) {
       return interaction.editReply({
-        content: '❌ The waitlist is empty. No players to pull.'
+        content: '❌ The waitlist is empty or no active queues are open.'
       });
     }
 
+    const { player, modeName } = result;
     const guild = interaction.guild;
     const categoryId = process.env.TICKET_CATEGORY_ID;
 
@@ -68,17 +69,15 @@ export default {
         ]
       });
 
-      // 4. Register Ticket in Waitlist Service
-      if (typeof waitlistService.registerTicket === 'function') {
-        waitlistService.registerTicket(ticketChannel.id, player, interaction.user.id);
-      }
+      // 4. Register Ticket into waitlistService memory
+      waitlistService.registerTicket(ticketChannel.id, player, interaction.user.id);
 
       await ticketChannel.send({
-        content: `Hello <@${player.id}>! Your testing ticket channel has been created by Tester <@${interaction.user.id}>.\nUse \`/close\` once the testing session is finished.`
+        content: `Hello <@${player.id}>! Your testing ticket channel for **${modeName}** has been created by Tester <@${interaction.user.id}>.\nUse \`/close\` once the testing session is finished.`
       });
 
       return interaction.editReply({
-        content: `✅ Successfully pulled <@${player.id}>. Ticket channel created: ${ticketChannel}`
+        content: `✅ Successfully pulled <@${player.id}> (${modeName}). Ticket channel created: ${ticketChannel}`
       });
 
     } catch (error) {
