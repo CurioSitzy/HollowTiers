@@ -5,11 +5,10 @@ const DATA_FILE = path.join(process.cwd(), 'playerData.json');
 
 export class WaitlistService {
   constructor() {
-    // Inisialisasi penyimpanan data pemain dari file JSON lokal
     this.playerData = new Map();
+    this.activeTickets = new Map(); // Untuk menyimpan data room ticket yang sedang aktif
     this.loadPlayerData();
 
-    // Inisialisasi daftar gamemode beserta propertinya
     this.modes = new Map([
       ['mace', { name: 'Mace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
       ['sword', { name: 'Sword', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null }],
@@ -26,7 +25,6 @@ export class WaitlistService {
     ]);
   }
 
-  // Load data dari playerData.json saat bot pertama kali menyala
   loadPlayerData() {
     try {
       if (fs.existsSync(DATA_FILE)) {
@@ -40,7 +38,6 @@ export class WaitlistService {
     }
   }
 
-  // Simpan data ke playerData.json setiap kali ada player yang verifikasi
   savePlayerData() {
     try {
       const obj = Object.fromEntries(this.playerData);
@@ -50,13 +47,11 @@ export class WaitlistService {
     }
   }
 
-  // Simpan data verifikasi pemain
   setPlayerStats(userId, data) {
     this.playerData.set(userId, data);
-    this.savePlayerData(); // Auto-save ke disk
+    this.savePlayerData();
   }
 
-  // Ambil data verifikasi pemain
   getPlayerStats(userId) {
     return this.playerData.get(userId) || null;
   }
@@ -124,6 +119,44 @@ export class WaitlistService {
 
     mode.queue.splice(index, 1);
     return { success: true };
+  }
+
+  // ==========================================
+  // FITUR PULL & TICKET SYSTEM
+  // ==========================================
+
+  // Mengambil player paling atas dari antrean mode yang sedang terbuka
+  pullNextPlayer(modeKey = null) {
+    if (modeKey) {
+      const mode = this.getMode(modeKey);
+      if (mode && mode.queue.length > 0) {
+        return { player: mode.queue.shift(), modeName: mode.name };
+      }
+      return null;
+    }
+
+    // Jika modeKey tidak ditentukan, cari antrean teratas dari mode pertama yang buka
+    for (const [key, mode] of this.modes.entries()) {
+      if (mode.isOpen && mode.queue.length > 0) {
+        return { player: mode.queue.shift(), modeName: mode.name };
+      }
+    }
+    return null;
+  }
+
+  // Mendaftarkan channel ticket yang aktif
+  registerTicket(channelId, player, testerId) {
+    this.activeTickets.set(channelId, { player, testerId, createdAt: Date.now() });
+  }
+
+  // Mengambil data ticket berdasarkan Channel ID
+  getTicket(channelId) {
+    return this.activeTickets.get(channelId) || null;
+  }
+
+  // Menghapus ticket dari memori
+  removeTicket(channelId) {
+    return this.activeTickets.delete(channelId);
   }
 }
 
