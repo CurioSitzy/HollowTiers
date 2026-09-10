@@ -248,18 +248,16 @@ export default {
 
         // 1. DISCORD ROLE MANAGEMENT (Remove existing gamemode roles & Assign new role)
         let roleAddedStatus = '';
-        if (interaction.guild) {
+        if (interaction.guild && player) {
             try {
                 const member = await interaction.guild.members.fetch(player.id).catch(() => null);
                 if (member) {
                     let removedRoles = [];
                     
-                    // Filter all Role IDs for this gamemode
                     const gamemodeRoleIds = Object.keys(ROLE_IDS)
                         .filter(key => key.startsWith(`${gamemode}_`))
                         .map(key => ROLE_IDS[key]);
 
-                    // Remove existing gamemode tier roles from the player
                     for (const roleId of gamemodeRoleIds) {
                         if (member.roles.cache.has(roleId)) {
                             const r = interaction.guild.roles.cache.get(roleId);
@@ -268,7 +266,6 @@ export default {
                         }
                     }
 
-                    // Assign new role if rankEarned is not N/A
                     if (rankEarned !== 'N/A') {
                         const targetRoleId = ROLE_IDS[`${gamemode}_${rankEarned}`];
                         if (targetRoleId) {
@@ -296,10 +293,12 @@ export default {
         }
 
         // 2. SUPABASE INTEGRATION & RECALCULATE POINTS
-        if (supabase) {
+        // Menggunakan instance 'supabase' langsung atau fallback ke 'client.supabase'
+        const db = supabase || client?.supabase;
+
+        if (db && typeof db.from === 'function') {
             try {
-                // Upsert player record
-                const { data: playerData, error: playerErr } = await supabase
+                const { data: playerData, error: playerErr } = await db
                     .from('players')
                     .upsert([
                         {
@@ -318,8 +317,7 @@ export default {
                     const playerId = playerData.id;
                     const mappedGamemodeId = GAMEMODE_MAPPING[gamemode] || gamemode.toLowerCase();
 
-                    // Upsert tier record
-                    const { error: tierErr } = await supabase
+                    const { error: tierErr } = await db
                         .from('player_tiers')
                         .upsert([
                             {
@@ -333,8 +331,7 @@ export default {
                     if (tierErr) {
                         console.error('❌ Error saving to player_tiers table:', tierErr);
                     } else {
-                        // Recalculate total points
-                        const { data: allTiers, error: fetchTiersErr } = await supabase
+                        const { data: allTiers, error: fetchTiersErr } = await db
                             .from('player_tiers')
                             .select('tier')
                             .eq('player_id', playerId);
@@ -342,13 +339,13 @@ export default {
                         if (!fetchTiersErr && allTiers) {
                             const totalPoints = allTiers.reduce((sum, item) => sum + (TIER_POINTS[item.tier] || 0), 0);
 
-                            const { error: updatePointErr } = await supabase
+                            const { error: updatePointErr } = await db
                                 .from('players')
                                 .update({ points: totalPoints })
                                 .eq('id', playerId);
 
                             if (updatePointErr && updatePointErr.code === 'PGRST204') {
-                                await supabase
+                                await db
                                     .from('players')
                                     .update({ point: totalPoints })
                                     .eq('id', playerId);
@@ -359,26 +356,28 @@ export default {
             } catch (dbErr) {
                 console.error('❌ Database Exception:', dbErr);
             }
+        } else {
+            console.warn('⚠️ Instance Supabase tidak ditemukan atau tidak terhubung.');
         }
 
         // 3. BUILD EMBED (HollowTiers Style)
-        // Asset Avatar Head style Minecraft khas HollowTiers / MCTiers
         const minecraftHeadUrl = `https://mc-heads.net/avatar/${username}/512`;
 
-        const playerAvatarUrl = typeof player.displayAvatarURL === 'function' 
-            ? player.displayAvatarURL({ extension: 'png', size: 256 }) 
-            : player.avatarURL || client.user.displayAvatarURL();
+        // Safe avatar check menggunakan optional chaining (?.)
+        const playerAvatar = player?.displayAvatarURL?.({ extension: 'png', size: 256 }) 
+            || player?.avatarURL 
+            || 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-        const botAvatarUrl = typeof client.user.displayAvatarURL === 'function'
-            ? client.user.displayAvatarURL({ extension: 'png', size: 256 })
-            : client.user.avatarURL;
+        const botAvatar = client?.user?.displayAvatarURL?.({ extension: 'png', size: 256 }) 
+            || client?.user?.avatarURL 
+            || 'https://cdn.discordapp.com/embed/avatars/0.png';
 
         const embed = new EmbedBuilder()
             .setAuthor({ 
                 name: `${username}'s Tier Test Result`, 
-                iconURL: playerAvatarUrl 
+                iconURL: playerAvatar 
             })
-            .setColor('#2b2d31') // Dark theme Discord / HollowTiers
+            .setColor('#2b2d31')
             .setThumbnail(minecraftHeadUrl)
             .addFields(
                 { name: '👤 Tested Player', value: `<@${player.id}> (\`${username}\`)`, inline: true },
@@ -388,7 +387,7 @@ export default {
                 { name: '📊 Previous Rank', value: `\`${previousRank}\``, inline: true },
                 { name: '🏆 Rank Earned', value: `\`${rankEarned}\``, inline: true }
             )
-            .setFooter({ text: 'HollowTiers • Tier Test System', iconURL: botAvatarUrl })
+            .setFooter({ text: 'HollowTiers • Tier Test System', iconURL: botAvatar })
             .setTimestamp();
 
         // 4. SEND TO OUTPUT CHANNEL
