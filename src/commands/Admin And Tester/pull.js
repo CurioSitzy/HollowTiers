@@ -14,22 +14,22 @@ export default {
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    // 1. Pengecekan Role Tester
+    // 1. Role Permission Check
     const member = interaction.member;
     const hasTesterRole = TESTER_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
 
     if (!hasTesterRole && !member.permissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.editReply({
-        content: '❌ **Akses Ditolak!** Hanya **Tester** dan **Verified Tester** yang dapat menggunakan command ini.'
+        content: '❌ **Access Denied!** Only **Tester** and **Verified Tester** roles can use this command.'
       });
     }
 
-    // 2. Ambil Player dari Service
+    // 2. Pull Next Player from Waitlist Service
     const player = waitlistService.pullNextPlayer();
 
     if (!player) {
       return interaction.editReply({
-        content: '❌ Antrean waitlist kosong. Tidak ada player untuk ditarik.'
+        content: '❌ The waitlist is empty. No players to pull.'
       });
     }
 
@@ -37,7 +37,7 @@ export default {
     const categoryId = process.env.TICKET_CATEGORY_ID;
 
     try {
-      // 3. Buat Room Ticket
+      // 3. Create Ticket Channel
       const ticketChannel = await guild.channels.create({
         name: `ticket-${player.username || player.id}`,
         type: ChannelType.GuildText,
@@ -68,23 +68,23 @@ export default {
         ]
       });
 
-      // 4. Register Ticket ke Waitlist Service
+      // 4. Register Ticket in Waitlist Service
       if (typeof waitlistService.registerTicket === 'function') {
         waitlistService.registerTicket(ticketChannel.id, player, interaction.user.id);
       }
 
       await ticketChannel.send({
-        content: `Halo <@${player.id}>! Room ticket tes kamu telah dibuat oleh Tester <@${interaction.user.id}>.\nGunakan \`/close\` jika sesi tes sudah selesai.`
+        content: `Hello <@${player.id}>! Your testing ticket channel has been created by Tester <@${interaction.user.id}>.\nUse \`/close\` once the testing session is finished.`
       });
 
       return interaction.editReply({
-        content: `✅ Berhasil menarik <@${player.id}>. Room ticket: ${ticketChannel}`
+        content: `✅ Successfully pulled <@${player.id}>. Ticket channel created: ${ticketChannel}`
       });
 
     } catch (error) {
-      console.error('Gagal membuat channel ticket:', error);
+      console.error('Failed to create ticket channel:', error);
       return interaction.editReply({
-        content: `❌ Terjadi kesalahan saat membuat channel ticket: \`${error.message}\``
+        content: `❌ An error occurred while creating the ticket channel: \`${error.message}\``
       });
     }
   }
