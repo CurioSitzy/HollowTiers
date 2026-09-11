@@ -129,32 +129,79 @@ export class WaitlistService {
   }
 
   // ==========================================
+  // HELPER UNTUK REFRESH/UPDATE EMBED DISCORD
+  // ==========================================
+  async updateQueueEmbed(modeKey, client) {
+    const mode = this.getMode(modeKey);
+    if (!mode || !mode.messageId || !mode.channelId || !client) return;
+
+    try {
+      const channel = await client.channels.fetch(mode.channelId).catch(() => null);
+      if (!channel) return;
+
+      const message = await channel.messages.fetch(mode.messageId).catch(() => null);
+      if (!message) return;
+
+      // Ambil embed asli
+      const existingEmbed = message.embeds[0];
+      if (!existingEmbed) return;
+
+      // Buat daftar antrean terbaru
+      const queueList = mode.queue.length > 0
+        ? mode.queue.map((p, i) => `${i + 1}. <@${p.id}>`).join('\n')
+        : 'No players in queue';
+
+      // Rebuild embed dengan antrean baru
+      const newEmbed = { ...existingEmbed.data };
+      
+      // Update field Waiting Queue
+      const queueFieldIndex = newEmbed.fields?.findIndex(f => f.name.includes('Waiting Queue'));
+      if (queueFieldIndex !== undefined && queueFieldIndex !== -1) {
+        newEmbed.fields[queueFieldIndex].name = `Waiting Queue (${mode.queue.length})`;
+        newEmbed.fields[queueFieldIndex].value = queueList;
+      }
+
+      await message.edit({ embeds: [newEmbed] });
+    } catch (err) {
+      console.error(`Failed to update embed for mode ${modeKey}:`, err);
+    }
+  }
+
+  // ==========================================
   // FITUR PULL & TICKET SYSTEM
   // ==========================================
 
-  pullNextPlayer(modeKey = null) {
+  pullNextPlayer(modeKey = null, client = null) {
+    let pulledResult = null;
+
     if (modeKey) {
       const mode = this.getMode(modeKey);
       if (mode && mode.queue.length > 0) {
-        return { 
+        pulledResult = { 
           player: mode.queue.shift(), 
           modeName: mode.name, 
           modeKey: modeKey.toLowerCase() 
         };
       }
-      return null;
-    }
-
-    for (const [key, mode] of this.modes.entries()) {
-      if (mode.isOpen && mode.queue.length > 0) {
-        return { 
-          player: mode.queue.shift(), 
-          modeName: mode.name, 
-          modeKey: key 
-        };
+    } else {
+      for (const [key, mode] of this.modes.entries()) {
+        if (mode.isOpen && mode.queue.length > 0) {
+          pulledResult = { 
+            player: mode.queue.shift(), 
+            modeName: mode.name, 
+            modeKey: key 
+          };
+          break;
+        }
       }
     }
-    return null;
+
+    // Jika berhasil pull player, otomatis refresh embed pesan Discord
+    if (pulledResult && client) {
+      this.updateQueueEmbed(pulledResult.modeKey, client);
+    }
+
+    return pulledResult;
   }
 
   registerTicket(channelId, player, testerId) {
