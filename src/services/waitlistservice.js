@@ -80,6 +80,16 @@ export class WaitlistService {
     return this.modes.get(modeKey?.toLowerCase());
   }
 
+  isOpen(modeKey) {
+    const mode = this.getMode(modeKey);
+    return mode ? mode.isOpen : false;
+  }
+
+  getPlayers(modeKey) {
+    const mode = this.getMode(modeKey);
+    return mode ? mode.queue : [];
+  }
+
   setTesterRole(modeKey, roleId) {
     const mode = this.getMode(modeKey);
     if (mode) {
@@ -111,6 +121,20 @@ export class WaitlistService {
     return member.roles.cache.has(mode.testerRoleId);
   }
 
+  // ==========================================
+  // FITUR TOGGLE & CLEAR QUEUE
+  // ==========================================
+
+  clearQueue(modeKey) {
+    const mode = this.getMode(modeKey);
+    if (mode) {
+      mode.queue = [];
+      this.savePlayerData(); // Simpan antrean yang sudah dibersihkan
+      return true;
+    }
+    return false;
+  }
+
   toggleOpen(modeKey, userId) {
     const mode = this.getMode(modeKey);
     if (!mode) return false;
@@ -127,9 +151,11 @@ export class WaitlistService {
       mode.openedBy = userId;
     } else {
       mode.openedBy = null;
+      // OTOMATIS BERSIHKAN ANTREAN SAAT QUEUE DITUTUP
+      mode.queue = [];
     }
 
-    this.savePlayerData(); // Simpan perubahan status isOpen
+    this.savePlayerData(); // Simpan perubahan status & queue ke playerData.json
     return mode.isOpen;
   }
 
@@ -141,7 +167,17 @@ export class WaitlistService {
     const exists = mode.queue.some(p => p.id === user.id);
     if (exists) return { success: false, reason: 'You are already in this queue!' };
 
-    mode.queue.push({ id: user.id, username: user.username, joinedAt: Date.now() });
+    // Ambil data region dari playerData jika tersedia
+    const playerStats = this.getPlayerStats(user.id);
+    const region = playerStats?.region || 'N/A';
+
+    mode.queue.push({ 
+      id: user.id, 
+      username: user.username, 
+      region: region,
+      joinedAt: Date.now() 
+    });
+
     this.savePlayerData(); // Simpan queue terbaru
     return { success: true };
   }
@@ -176,7 +212,7 @@ export class WaitlistService {
       if (!existingEmbed) return;
 
       const queueList = mode.queue.length > 0
-        ? mode.queue.map((p, i) => `${i + 1}. <@${p.id}>`).join('\n')
+        ? mode.queue.map((p, i) => `${i + 1}. <@${p.id}> [${p.region || 'N/A'}]`).join('\n')
         : 'No players in queue';
 
       const newEmbed = { ...existingEmbed.data };
