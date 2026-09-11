@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChannelType, PermissionFlagsBits, MessageFlags, EmbedBuilder } from 'discord.js';
 import { waitlistService } from '../../services/waitlistservice.js';
 
 const TESTER_ROLE_IDS = [
@@ -24,7 +24,7 @@ export default {
       });
     }
 
-    // 2. Pull Player via waitlistService (Otomatis hapus dari queue & update Embed)
+    // 2. Pull Player via waitlistService
     const result = waitlistService.pullNextPlayer();
 
     if (!result || !result.player) {
@@ -49,23 +49,59 @@ export default {
       }
     }
 
-    // Catat ke Supabase (FIX: Hapus dari tabel waitlists / ubah status tanpa batasan status 'waiting')
+    // 🔥 FIX UTAMA: UPDATE EMBED QUEUE DI CHANNEL CARI DARI CHANNEL TERAKHIR / PANTAUAN
+    try {
+      const mode = waitlistService.getMode(modeKey);
+      
+      // Cari channel queue (bisa pakai channel tempat command dipakai atau mode.channelId)
+      const targetChannel = interaction.channel; 
+      if (targetChannel) {
+        // Cari pesan dari Bot yang berisi embed queue
+        const messages = await targetChannel.messages.fetch({ limit: 10 }).catch(() => null);
+        const embedMessage = messages?.find(m => m.author.id === client.user.id && m.embeds.length > 0);
+
+        if (embedMessage) {
+          const oldEmbed = embedMessage.embeds[0];
+          
+          // Re-generate list antrean terbaru
+          const updatedQueueList = mode.queue.length > 0
+            ? mode.queue.map((p, i) => `${i + 1}. <@${p.id}>`).join('\n')
+            : 'No players in queue';
+
+          // Clone fields dan update Waiting Queue
+          const updatedFields = oldEmbed.fields.map(field => {
+            if (field.name.includes('Waiting Queue')) {
+              return {
+                name: `Waiting Queue (${mode.queue.length})`,
+                value: updatedQueueList,
+                inline: field.inline || false
+              };
+            }
+            return field;
+          });
+
+          const newEmbed = EmbedBuilder.from(oldEmbed).setFields(updatedFields);
+
+          // Update pesan embed di Discord!
+          await embedMessage.edit({ embeds: [newEmbed] });
+          
+          // Simpan messageId & channelId agar fungsi lain tetap tahu
+          waitlistService.setMessageId(modeKey, embedMessage.id);
+          waitlistService.setChannelId(modeKey, targetChannel.id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to auto-update queue embed on /pull:', err);
+    }
+
+    // Catat ke Supabase jika ada
     const db = supabase || client?.supabase;
     if (db) {
-      // Jika sistem kamu harus menghapus player dari database saat dipull:
       await db
         .from('waitlists')
         .delete()
         .eq('discord_id', player.id)
-        .catch((err) => console.error('Failed to delete waitlist from Supabase:', err.message));
-
-      /* Catatan: Jika memang mau UPDATE status ke 'testing' (bukan HAPUS), gunakan baris ini:
-      await db
-        .from('waitlists')
-        .update({ status: 'testing' })
-        .eq('discord_id', player.id)
         .catch((err) => console.error('Failed to update waitlist in Supabase:', err.message));
-      */
     }
 
     try {
