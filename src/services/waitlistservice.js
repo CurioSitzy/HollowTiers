@@ -7,9 +7,7 @@ export class WaitlistService {
   constructor() {
     this.playerData = new Map();
     this.activeTickets = new Map();
-    this.loadPlayerData();
 
-    // Tambahkan properti channelId di tiap mode
     this.modes = new Map([
       ['mace', { name: 'Mace', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
       ['sword', { name: 'Sword', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
@@ -24,6 +22,8 @@ export class WaitlistService {
       ['cart', { name: 'Cart', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }],
       ['nethop', { name: 'NetHop', isOpen: false, queue: [], openedBy: null, lastSession: null, testerRoleId: null, messageId: null, channelId: null }]
     ]);
+
+    this.loadPlayerData();
   }
 
   loadPlayerData() {
@@ -31,7 +31,23 @@ export class WaitlistService {
       if (fs.existsSync(DATA_FILE)) {
         const rawData = fs.readFileSync(DATA_FILE, 'utf8');
         const parsed = JSON.parse(rawData);
-        this.playerData = new Map(Object.entries(parsed));
+
+        // Load Player Data
+        if (parsed.playerData) {
+          this.playerData = new Map(Object.entries(parsed.playerData));
+        } else if (!parsed.modes) {
+          // Fallback untuk file JSON format lama
+          this.playerData = new Map(Object.entries(parsed));
+        }
+
+        // Load State Modes agar tidak ter-reset saat bot restart
+        if (parsed.modes) {
+          for (const [key, savedMode] of Object.entries(parsed.modes)) {
+            if (this.modes.has(key)) {
+              this.modes.set(key, { ...this.modes.get(key), ...savedMode });
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load playerData.json:', err);
@@ -41,8 +57,11 @@ export class WaitlistService {
 
   savePlayerData() {
     try {
-      const obj = Object.fromEntries(this.playerData);
-      fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), 'utf8');
+      const dataToSave = {
+        playerData: Object.fromEntries(this.playerData),
+        modes: Object.fromEntries(this.modes) // Simpan state modes ke JSON
+      };
+      fs.writeFileSync(DATA_FILE, JSON.stringify(dataToSave, null, 2), 'utf8');
     } catch (err) {
       console.error('Failed to save playerData.json:', err);
     }
@@ -63,18 +82,26 @@ export class WaitlistService {
 
   setTesterRole(modeKey, roleId) {
     const mode = this.getMode(modeKey);
-    if (mode) mode.testerRoleId = roleId;
+    if (mode) {
+      mode.testerRoleId = roleId;
+      this.savePlayerData();
+    }
   }
 
   setMessageId(modeKey, messageId) {
     const mode = this.getMode(modeKey);
-    if (mode) mode.messageId = messageId;
+    if (mode) {
+      mode.messageId = messageId;
+      this.savePlayerData();
+    }
   }
 
-  // Method baru untuk menyimpan Channel ID
   setChannelId(modeKey, channelId) {
     const mode = this.getMode(modeKey);
-    if (mode) mode.channelId = channelId;
+    if (mode) {
+      mode.channelId = channelId;
+      this.savePlayerData();
+    }
   }
 
   isTester(member, modeKey) {
@@ -102,6 +129,7 @@ export class WaitlistService {
       mode.openedBy = null;
     }
 
+    this.savePlayerData(); // Simpan perubahan status isOpen
     return mode.isOpen;
   }
 
@@ -114,6 +142,7 @@ export class WaitlistService {
     if (exists) return { success: false, reason: 'You are already in this queue!' };
 
     mode.queue.push({ id: user.id, username: user.username, joinedAt: Date.now() });
+    this.savePlayerData(); // Simpan queue terbaru
     return { success: true };
   }
 
@@ -125,6 +154,7 @@ export class WaitlistService {
     if (index === -1) return { success: false, reason: 'You are not in this queue.' };
 
     mode.queue.splice(index, 1);
+    this.savePlayerData(); // Simpan queue terbaru
     return { success: true };
   }
 
@@ -142,19 +172,15 @@ export class WaitlistService {
       const message = await channel.messages.fetch(mode.messageId).catch(() => null);
       if (!message) return;
 
-      // Ambil embed asli
       const existingEmbed = message.embeds[0];
       if (!existingEmbed) return;
 
-      // Buat daftar antrean terbaru
       const queueList = mode.queue.length > 0
         ? mode.queue.map((p, i) => `${i + 1}. <@${p.id}>`).join('\n')
         : 'No players in queue';
 
-      // Rebuild embed dengan antrean baru
       const newEmbed = { ...existingEmbed.data };
       
-      // Update field Waiting Queue
       const queueFieldIndex = newEmbed.fields?.findIndex(f => f.name.includes('Waiting Queue'));
       if (queueFieldIndex !== undefined && queueFieldIndex !== -1) {
         newEmbed.fields[queueFieldIndex].name = `Waiting Queue (${mode.queue.length})`;
@@ -196,9 +222,11 @@ export class WaitlistService {
       }
     }
 
-    // Jika berhasil pull player, otomatis refresh embed pesan Discord
-    if (pulledResult && client) {
-      this.updateQueueEmbed(pulledResult.modeKey, client);
+    if (pulledResult) {
+      this.savePlayerData(); // Simpan antrean yang sudah ter-pull
+      if (client) {
+        this.updateQueueEmbed(pulledResult.modeKey, client);
+      }
     }
 
     return pulledResult;
