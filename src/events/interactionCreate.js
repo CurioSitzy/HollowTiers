@@ -423,8 +423,28 @@ export default {
 
               await interaction.deferUpdate().catch(() => {});
 
-              if (waitlistService && typeof waitlistService.toggleOpen === 'function') {
-                waitlistService.toggleOpen(queueModeKey, interaction.user.id);
+              if (waitlistService) {
+                // Cek apakah queue saat ini sedang TERBUKA
+                const isOpenBeforeToggle = typeof waitlistService.isOpen === 'function' 
+                  ? waitlistService.isOpen(queueModeKey) 
+                  : waitlistService.queues?.[queueModeKey]?.open;
+
+                // Ubah status toggle (Open <-> Close)
+                if (typeof waitlistService.toggleOpen === 'function') {
+                  waitlistService.toggleOpen(queueModeKey, interaction.user.id);
+                }
+
+                // Jika aksi ini MENUTUP queue, KOSONGKAN antrean pemain
+                if (isOpenBeforeToggle) {
+                  if (typeof waitlistService.clearQueue === 'function') {
+                    waitlistService.clearQueue(queueModeKey);
+                  } else if (typeof waitlistService.resetQueue === 'function') {
+                    waitlistService.resetQueue(queueModeKey);
+                  } else if (waitlistService.queues?.[queueModeKey]) {
+                    waitlistService.queues[queueModeKey].players = [];
+                    waitlistService.queues[queueModeKey].waitlist = [];
+                  }
+                }
               }
 
               await WaitlistUpdater.updateMessage(interaction.channel, interaction.message.id, queueModeKey, waitlistService);
