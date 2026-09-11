@@ -49,15 +49,23 @@ export default {
       }
     }
 
-    // Catat ke Supabase
+    // Catat ke Supabase (FIX: Hapus dari tabel waitlists / ubah status tanpa batasan status 'waiting')
     const db = supabase || client?.supabase;
     if (db) {
+      // Jika sistem kamu harus menghapus player dari database saat dipull:
+      await db
+        .from('waitlists')
+        .delete()
+        .eq('discord_id', player.id)
+        .catch((err) => console.error('Failed to delete waitlist from Supabase:', err.message));
+
+      /* Catatan: Jika memang mau UPDATE status ke 'testing' (bukan HAPUS), gunakan baris ini:
       await db
         .from('waitlists')
         .update({ status: 'testing' })
         .eq('discord_id', player.id)
-        .eq('status', 'waiting')
         .catch((err) => console.error('Failed to update waitlist in Supabase:', err.message));
+      */
     }
 
     try {
