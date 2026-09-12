@@ -18,7 +18,7 @@ const BUTTON_CONFIG = {
     SMP: { id: '1546304892048646154', fallback: '🌐', label: 'SMP', customId: 'gm_smp' },
     POT: { id: '1546304887451689020', fallback: '🧪', label: 'Pot', customId: 'gm_pot' },
     NETHOP: { id: '1546304884230586408', fallback: '🔥', label: 'NethOP', customId: 'gm_nethop' },
-    DIAMONDSMP: { id: '1546307214967570582', fallback: '💎', label: 'DiamondSMP', customId: 'gm_diamondsmp' },
+    DIAMONDSMP: { id: '1546307214967570582', fallback: '💎', label: 'DiamondSMP', customId: 'gm_diasmp' },
     MACE: { id: '1546304790072393809', fallback: '🔨', label: 'Mace', customId: 'gm_mace' },
     CART: { id: '1546344405647233034', fallback: '🛒', label: 'Cart', customId: 'gm_cart' },
     SPEARMACE: { id: '1546346223009669192', fallback: '🗡️', label: 'Spear Mace', customId: 'gm_spearmace' }
